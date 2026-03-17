@@ -3,13 +3,13 @@
 .DS_Store
 .env
 
-audits_reports
+audits_reports/*
 !audits_reports/.gitkeep
 
-drupal_sites
+drupal_sites/*
 !drupal_sites/.gitkeep
 
-tmp
+tmp/*
 !tmp/.gitkeep
 
 .playwright-mcp

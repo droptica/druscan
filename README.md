@@ -137,7 +137,7 @@ See `commands_registry.sh` for full list.
 **Required:**
 - **DDEV** - Site must run under DDEV locally
 - **jq** - JSON processor (`brew install jq` on macOS)
-- **Drupal 8/9/10/11** - Modern Drupal versions only
+- **Drupal 8/9/10/11** - Modern Drupal versions only. Drupal 12 is not verified yet; it is scheduled for release in December 2026.
 
 **Optional (for full analysis):**
 - **Lighthouse CLI** - Performance analysis (`npm install -g lighthouse`)
@@ -166,6 +166,12 @@ Found a bug or have an idea for improvement?
 - **Share feedback** - Let us know how you're using DRUSCAN
 
 We welcome contributions of all kinds - bug fixes, new audit commands, documentation improvements, or feature suggestions.
+
+---
+
+## License
+
+MIT. See [LICENSE](LICENSE). You can use it in commercial projects, fork it and change it.
 
 ---
 

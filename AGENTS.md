@@ -34,6 +34,12 @@ When adding a skill, create `.agents/skills/<skill-name>/SKILL.md` with `name` (
 - Only include details that support decision-making or reveal important issues
 
 
+## Bash Compatibility
+**IMPORTANT**: All scripts must work with **Bash 3.2** (default `/bin/bash` on macOS).
+- Do not use associative arrays (`declare -A`), `mapfile`/`readarray`, `${var,,}` or `${var^^}`
+- Use plain indexed arrays with `key|value` entries and `IFS='|' read -r ...` instead
+
+
 ## Drupal Version Compatibility
 **IMPORTANT**: All audit scripts are designed for **Drupal 8, 9, 10, 11** only.
 - Scripts use `watchdog` table (standard in Drupal 8+)

@@ -20,28 +20,30 @@ else
 fi
 
 # Define tools registry with config files and composer packages
-declare -A TOOLS=(
-    ["phpstan"]="PHPStan|Static analysis tool that finds bugs in code without running it. Offers configurable strictness levels.|phpstan.neon,phpstan.neon.dist,phpstan.dist.neon|phpstan/phpstan"
-    ["psalm"]="Psalm|Advanced static analysis with focus on type safety and annotation support.|psalm.xml,psalm.xml.dist|vimeo/psalm"
-    ["phpcs"]="PHP_CodeSniffer|Enforces coding standards (PSR-2, PSR-12, Drupal). Analyzes PHP, JS, CSS files.|phpcs.xml,phpcs.xml.dist,.phpcs.xml,phpcs.ruleset.xml|squizlabs/php_codesniffer,drupal/coder"
-    ["phpmd"]="PHP Mess Detector|Identifies code smells, dead code, and overly complex expressions.|phpmd.xml,phpmd.xml.dist,.phpmd.xml|phpmd/phpmd"
-    ["php-cs-fixer"]="PHP CS Fixer|Automatically fixes code standard violations according to predefined rules.|.php-cs-fixer.php,.php-cs-fixer.dist.php,.php_cs,.php_cs.dist|friendsofphp/php-cs-fixer"
-    ["phan"]="Phan|Static analyzer focusing on catching real bugs with reduced false positives.|.phan/config.php,phan.php|phan/phan"
-    ["rector"]="Rector|Automated refactoring tool for upgrading and modernizing PHP code.|rector.php,rector.yaml|rector/rector"
-    ["phpunit"]="PHPUnit|Unit testing framework for PHP. Essential for automated testing.|phpunit.xml,phpunit.xml.dist|phpunit/phpunit"
-    ["grumphp"]="GrumPHP|Git hooks manager that runs code quality checks before commits.|grumphp.yml,grumphp.yml.dist|phpro/grumphp"
-    ["phpmetrics"]="PhpMetrics|Generates quality reports and complexity metrics.|.phpmetrics.json,.phpmetrics.yml|phpmetrics/phpmetrics"
-    ["scrutinizer"]="Scrutinizer|Cloud-based continuous integration for code quality analysis.|.scrutinizer.yml|"
-    ["sonarqube"]="SonarQube|Comprehensive static analysis platform for bugs, code smells, security.|sonar-project.properties,.sonarcloud.properties|"
-    ["codeception"]="Codeception|Full-stack testing framework for PHP (BDD-style).|codeception.yml,codeception.yml.dist,codeception.dist.yml|codeception/codeception"
-    ["behat"]="Behat|Behavior-driven development framework for PHP.|behat.yml,behat.yml.dist|behat/behat"
-    ["infection"]="Infection|Mutation testing framework for PHP to measure test quality.|infection.json,infection.json.dist|infection/infection"
-    ["phpcpd"]="PHP Copy/Paste Detector|Detects duplicated code in PHP projects.|.phpcpd.xml|sebastian/phpcpd"
-    ["phploc"]="PHPLOC|Measures project size and analyzes code structure.|.phploc.yml|phploc/phploc"
-    ["parallel-lint"]="PHP Parallel Lint|Checks PHP files for syntax errors in parallel.|.parallel-lint.yml|php-parallel-lint/php-parallel-lint,jakub-onderka/php-parallel-lint"
-    ["phpcompatibility"]="PHPCompatibility|Checks PHP version compatibility.|.phpcompat.xml|phpcompatibility/php-compatibility"
-    ["larastan"]="Larastan|PHPStan wrapper for Laravel (may be used in Drupal custom code).|phpstan.neon|nunomaduro/larastan"
-    ["deptrac"]="Deptrac|Enforces architectural rules and layer dependencies.|deptrac.yaml,deptrac.yml|qossmic/deptrac-shim"
+# Format: "tool_key|Name|Description|config files (comma separated)|composer packages (comma separated)"
+# Note: plain indexed array (not "declare -A") - must work with Bash 3.2 (default on macOS)
+TOOLS=(
+    "phpstan|PHPStan|Static analysis tool that finds bugs in code without running it. Offers configurable strictness levels.|phpstan.neon,phpstan.neon.dist,phpstan.dist.neon|phpstan/phpstan"
+    "psalm|Psalm|Advanced static analysis with focus on type safety and annotation support.|psalm.xml,psalm.xml.dist|vimeo/psalm"
+    "phpcs|PHP_CodeSniffer|Enforces coding standards (PSR-2, PSR-12, Drupal). Analyzes PHP, JS, CSS files.|phpcs.xml,phpcs.xml.dist,.phpcs.xml,phpcs.ruleset.xml|squizlabs/php_codesniffer,drupal/coder"
+    "phpmd|PHP Mess Detector|Identifies code smells, dead code, and overly complex expressions.|phpmd.xml,phpmd.xml.dist,.phpmd.xml|phpmd/phpmd"
+    "php-cs-fixer|PHP CS Fixer|Automatically fixes code standard violations according to predefined rules.|.php-cs-fixer.php,.php-cs-fixer.dist.php,.php_cs,.php_cs.dist|friendsofphp/php-cs-fixer"
+    "phan|Phan|Static analyzer focusing on catching real bugs with reduced false positives.|.phan/config.php,phan.php|phan/phan"
+    "rector|Rector|Automated refactoring tool for upgrading and modernizing PHP code.|rector.php,rector.yaml|rector/rector"
+    "phpunit|PHPUnit|Unit testing framework for PHP. Essential for automated testing.|phpunit.xml,phpunit.xml.dist|phpunit/phpunit"
+    "grumphp|GrumPHP|Git hooks manager that runs code quality checks before commits.|grumphp.yml,grumphp.yml.dist|phpro/grumphp"
+    "phpmetrics|PhpMetrics|Generates quality reports and complexity metrics.|.phpmetrics.json,.phpmetrics.yml|phpmetrics/phpmetrics"
+    "scrutinizer|Scrutinizer|Cloud-based continuous integration for code quality analysis.|.scrutinizer.yml|"
+    "sonarqube|SonarQube|Comprehensive static analysis platform for bugs, code smells, security.|sonar-project.properties,.sonarcloud.properties|"
+    "codeception|Codeception|Full-stack testing framework for PHP (BDD-style).|codeception.yml,codeception.yml.dist,codeception.dist.yml|codeception/codeception"
+    "behat|Behat|Behavior-driven development framework for PHP.|behat.yml,behat.yml.dist|behat/behat"
+    "infection|Infection|Mutation testing framework for PHP to measure test quality.|infection.json,infection.json.dist|infection/infection"
+    "phpcpd|PHP Copy/Paste Detector|Detects duplicated code in PHP projects.|.phpcpd.xml|sebastian/phpcpd"
+    "phploc|PHPLOC|Measures project size and analyzes code structure.|.phploc.yml|phploc/phploc"
+    "parallel-lint|PHP Parallel Lint|Checks PHP files for syntax errors in parallel.|.parallel-lint.yml|php-parallel-lint/php-parallel-lint,jakub-onderka/php-parallel-lint"
+    "phpcompatibility|PHPCompatibility|Checks PHP version compatibility.|.phpcompat.xml|phpcompatibility/php-compatibility"
+    "larastan|Larastan|PHPStan wrapper for Laravel (may be used in Drupal custom code).|phpstan.neon|nunomaduro/larastan"
+    "deptrac|Deptrac|Enforces architectural rules and layer dependencies.|deptrac.yaml,deptrac.yml|qossmic/deptrac-shim"
 )
 
 # Initialize result object
@@ -114,8 +116,8 @@ TOOLS_NOT_FOUND_JSON="[]"
 TOOLS_CONFIGURED=0
 TOOLS_NOT_CONFIGURED=0
 
-for tool_key in "${!TOOLS[@]}"; do
-    IFS='|' read -r tool_name description config_files composer_packages <<< "${TOOLS[$tool_key]}"
+for tool_entry in "${TOOLS[@]}"; do
+    IFS='|' read -r tool_key tool_name description config_files composer_packages <<< "$tool_entry"
     
     # Check config files
     config_files_found=$(check_file_exists "$config_files")

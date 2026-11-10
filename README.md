@@ -72,7 +72,7 @@ That's it! Now you can run the audit.
 
 ### Option 1: Full AI-Powered Workflow (Recommended)
 
-Use with [Cursor IDE](https://cursor.com) for complete audit analysis:
+Use with an AI coding agent that supports [Agent Skills](https://agentskills.io) (e.g., Cursor, Claude Code, Codex) for complete audit analysis:
 
 **What you get:**
 - ✅ Automated data collection from your Drupal site
@@ -81,8 +81,8 @@ Use with [Cursor IDE](https://cursor.com) for complete audit analysis:
 - ✅ Actionable improvement suggestions
 
 **Usage:**
-- Open project in Cursor IDE
-- In chat, type: `/drupal-audit [site-name] [production-url]`
+- Open the project in your AI coding agent
+- In chat, type: `/drupal-audit [site-name] [production-url]` (or ask the agent to run the `drupal-audit` skill for your site and production URL)
 - Wait 10-15 minutes for complete analysis
 
 ### Option 2: Standalone Script (Manual Analysis)
@@ -115,8 +115,19 @@ Run audit scripts directly from terminal:
 ```
 audits_reports/{timestamp}_{site-name}/
 ├── json/       # Structured audit data
-└── html/       # Report template
+├── html/       # Report template
+└── errors.log  # Only when something failed: command, exit code, error output
 ```
+
+**Exit codes:**
+
+| Code | Meaning |
+|------|---------|
+| `0` | Audit completed without errors |
+| `1` | Audit did not run (missing parameters, unknown section name, missing tools, DDEV not accessible) |
+| `2` | Audit completed, but at least one command or section failed - the report may be incomplete |
+
+The summary at the end lists all errors and warnings. Errors (e.g., a command returned invalid JSON) change the exit code to `2`. Warnings (e.g., a command returned a non-zero exit code or no output, a helper script reported a problem such as a missing optional tool) do not. Note that `errors.log` may contain raw command output - review it before sharing the report folder.
 
 ## What Gets Audited
 
@@ -128,6 +139,7 @@ System checks 20+ areas including:
 - Cron jobs, external integrations, APIs
 - Database errors, performance issues
 - Multilingual setup, tests coverage
+- Drupal Canvas page builder (version, pages, custom components)
 
 See `commands_registry.sh` for full list.
 
@@ -152,7 +164,12 @@ For developers who want to extend or modify the audit:
 - **`audit.sh`** - Main orchestration script
 - **`commands_registry.sh`** - Registry of all audit commands (easy to extend)
 - **`./scripts/`** - Helper scripts for complex analysis
-- **`./template/`** - HTML report template
+- **`./scripts/php/`** - PHP files run inside Drupal with one drush call each (see `scripts/lib/drush_php.sh`)
+- **`./scripts/ddev_cached.sh`** - Caches repeated read-only `ddev` calls during one audit (disable with `DRUSCAN_NO_CACHE=1`)
+- **`./template/`** - HTML report template (look and feel: `template/drupal_audit_template/assets/report.css`)
+- **`./scripts/rebuild_report_html.sh`** - Rebuilds report HTML from existing JSON (for testing template changes)
+- **`AGENTS.md`** - Project rules for AI coding agents (`CLAUDE.md` is a symlink to it)
+- **`.agents/skills/`** - Agent skills, e.g. `drupal-audit` (`.claude/skills` is a symlink to it)
 - **Output:** `audits_reports/{timestamp}_{site-name}/` - JSON data + HTML
 
 ---

@@ -6,93 +6,11 @@
   <title>Entity Structure</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-  <style>
-    :root {
-      --droptica-primary: #0039FF;
-      --droptica-primary-dark: #0029CC;
-      --droptica-success: #10B981;
-      --droptica-warning: #F59E0B;
-      --droptica-danger: #DC2626;
-    }
-
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #f8f9fa;
-      padding: 20px;
-    }
-
-    h2 {
-      color: var(--droptica-primary);
-      border-bottom: 2px solid var(--droptica-primary);
-      padding-bottom: 10px;
-    }
-
-    .card {
-      border: none;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-
-    .diagram-container {
-      position: relative;
-      margin: 20px 0;
-    }
-
-    .zoom-controls {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      z-index: 1000;
-    }
-
-    .zoom-btn {
-      background: var(--droptica-primary);
-      color: white;
-      border: none;
-      width: 40px;
-      height: 40px;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 20px;
-      font-weight: bold;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-      transition: background 0.2s;
-    }
-
-    .zoom-btn:hover {
-      background: var(--droptica-primary-dark);
-    }
-
-    .zoom-btn:active {
-      transform: scale(0.95);
-    }
-
-    .mermaid {
-      background-color: #fff;
-      border: 1px solid #dee2e6;
-      border-radius: 8px;
-      padding: 20px;
-      margin: 0;
-      text-align: center;
-      overflow: hidden;
-      cursor: grab;
-    }
-
-    .mermaid:active {
-      cursor: grabbing;
-    }
-
-    .mermaid svg {
-      max-width: 100%;
-      height: auto;
-      transition: transform 0.2s ease;
-    }
-  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
+  <script src="../assets/diagram.js"></script>
+  <link rel="stylesheet" href="../assets/report.css">
 </head>
-<body>
+<body class="ds-page">
   <div class="container-fluid">
     <section class="card shadow-sm mb-4" id="entity-system-structure">
       <div class="card-body p-4">
@@ -118,19 +36,6 @@
   </div>
 
   <script>
-    // Initialize Mermaid
-    if (typeof mermaid !== 'undefined') {
-      mermaid.initialize({
-        startOnLoad: false,
-        theme: 'default',
-        securityLevel: 'loose',
-        flowchart: {
-          useMaxWidth: true,
-          htmlLabels: true
-        }
-      });
-    }
-
     // Safe placeholder handling - will be replaced during audit generation
     let ENTITY_DATA;
     try {
@@ -635,111 +540,20 @@
       // Mermaid Diagram
       if (data.full_analysis && data.full_analysis.mermaid_diagram) {
         html += '<h3 class="mt-5 mb-3">Entity Relationship Diagram</h3>';
-        html += '<div class="alert alert-info">';
-        html += '<i class="bi bi-diagram-3 me-2"></i>';
-        html += '<strong>Interactive diagram showing relationships between entity types</strong><br>';
-        html += '<small>Use mouse wheel to zoom, drag to pan, or use the +/- buttons</small>';
-        html += '</div>';
+        html += '<p class="text-muted">Relationships between entity types, content types and vocabularies.</p>';
         html += '<div class="diagram-container">';
-        html += '<div class="zoom-controls">';
-        html += '<button class="zoom-btn" onclick="zoomInDiagram()">+</button>';
-        html += '<button class="zoom-btn" onclick="zoomOutDiagram()">−</button>';
-        html += '<button class="zoom-btn" onclick="resetZoomDiagram()" style="font-size: 16px;">⟲</button>';
-        html += '</div>';
-        html += '<div class="mermaid" id="entity-diagram">';
-        html += data.full_analysis.mermaid_diagram;
-        html += '</div>';
+        html += '<div class="mermaid" id="entity-diagram"></div>';
         html += '</div>';
       }
 
       container.innerHTML = html;
 
-      // Initialize Mermaid if diagram exists
-      if (data.full_analysis && data.full_analysis.mermaid_diagram && typeof mermaid !== 'undefined') {
-        try {
-          mermaid.init(undefined, document.querySelectorAll('.mermaid'));
-
-          // Setup zoom and pan functionality
-          setTimeout(() => {
-            setupDiagramInteraction();
-          }, 100);
-        } catch (e) {
-          console.error('Mermaid initialization error:', e);
-        }
+      // Draw the diagram with the shared viewer (assets/diagram.js)
+      const diagramHost = document.getElementById('entity-diagram');
+      if (diagramHost && typeof DruscanDiagram !== 'undefined') {
+        diagramHost.textContent = data.full_analysis.mermaid_diagram;
+        DruscanDiagram.enhance(diagramHost);
       }
-    }
-
-    // Diagram zoom and pan functionality
-    let diagramZoom = 1;
-    let diagramPan = { x: 0, y: 0 };
-    let isDragging = false;
-    let startX, startY;
-
-    function setupDiagramInteraction() {
-      const diagram = document.getElementById('entity-diagram');
-      if (!diagram) return;
-
-      const svg = diagram.querySelector('svg');
-      if (!svg) return;
-
-      // Mouse wheel zoom
-      diagram.addEventListener('wheel', (e) => {
-        e.preventDefault();
-        const delta = e.deltaY > 0 ? -0.1 : 0.1;
-        diagramZoom = Math.max(0.5, Math.min(3, diagramZoom + delta));
-        applyDiagramTransform();
-      });
-
-      // Drag to pan
-      diagram.addEventListener('mousedown', (e) => {
-        if (e.target.closest('svg')) {
-          isDragging = true;
-          startX = e.clientX - diagramPan.x;
-          startY = e.clientY - diagramPan.y;
-        }
-      });
-
-      diagram.addEventListener('mousemove', (e) => {
-        if (isDragging) {
-          diagramPan.x = e.clientX - startX;
-          diagramPan.y = e.clientY - startY;
-          applyDiagramTransform();
-        }
-      });
-
-      diagram.addEventListener('mouseup', () => {
-        isDragging = false;
-      });
-
-      diagram.addEventListener('mouseleave', () => {
-        isDragging = false;
-      });
-    }
-
-    function applyDiagramTransform() {
-      const diagram = document.getElementById('entity-diagram');
-      if (!diagram) return;
-
-      const svg = diagram.querySelector('svg');
-      if (svg) {
-        svg.style.transform = `translate(${diagramPan.x}px, ${diagramPan.y}px) scale(${diagramZoom})`;
-      }
-    }
-
-    function zoomInDiagram() {
-      diagramZoom = Math.min(3, diagramZoom + 0.2);
-      applyDiagramTransform();
-    }
-
-    function zoomOutDiagram() {
-      diagramZoom = Math.max(0.5, diagramZoom - 0.2);
-      applyDiagramTransform();
-    }
-
-    function resetZoomDiagram() {
-      diagramZoom = 1;
-      diagramPan = { x: 0, y: 0 };
-      applyDiagramTransform();
     }
 
     // Render on page load

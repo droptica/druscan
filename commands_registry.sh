@@ -199,6 +199,19 @@ COMMANDS=(
     "homepage_configuration|full_analysis|json|bash \${BASE_DIR}/scripts/analyze_homepage.sh"
 
     # ============================================
+    # Section: Drupal Canvas (visual page builder, drupal/canvas)
+    # - Is Canvas in the codebase / enabled, and in which version
+    # - Pages built with Canvas (title, path, status, number of components)
+    # - Components by source: code-defined (SDC), created in the Canvas editor, blocks
+    # - Custom components (custom theme/module code or created in the browser)
+    # - Most used components, unused custom components
+    # - Content templates, page regions, patterns, related modules
+    # Works also when Canvas is not installed (returns enabled: false)
+    # All data comes from ONE drush call (scripts/php/canvas.php)
+    # ============================================
+    "canvas|analysis|json|bash \${BASE_DIR}/scripts/analyze_canvas.sh"
+
+    # ============================================
     # Section: Database Logs (dblog)
     # Analyzes Drupal database logs (watchdog table):
     # - Watchdog table verification
@@ -313,15 +326,17 @@ COMMANDS=(
     # Note: Set BASE_URL for frontend analysis: export BASE_URL="https://your-site.com"
     # ============================================
     "performance|frontend_analysis|json|bash \${BASE_DIR}/scripts/analyze_performance.sh \"\${BASE_URL:-}\" frontend"
+    # Sub-keys below are copied from backend_analysis (already computed) instead of running the script again
+    # (fallback: run the script for that part if the full analysis failed)
     "performance|backend_analysis|json|bash \${BASE_DIR}/scripts/analyze_performance.sh \"\" backend"
-    "performance|cache_configuration|json|bash \${BASE_DIR}/scripts/analyze_performance.sh \"\" cache_config"
-    "performance|database_indexes|json|bash \${BASE_DIR}/scripts/analyze_performance.sh \"\" database_indexes"
-    "performance|php_settings|json|bash \${BASE_DIR}/scripts/analyze_performance.sh \"\" php_settings"
-    "performance|performance_modules|json|bash \${BASE_DIR}/scripts/analyze_performance.sh \"\" performance_modules"
-    "performance|views_performance|json|bash \${BASE_DIR}/scripts/analyze_performance.sh \"\" views_analysis"
-    "performance|code_performance|json|bash \${BASE_DIR}/scripts/analyze_performance.sh \"\" code_analysis"
-    "performance|css_js_aggregation|json|bash \${BASE_DIR}/scripts/analyze_performance.sh \"\" aggregation"
-    "performance|image_optimization|json|bash \${BASE_DIR}/scripts/analyze_performance.sh \"\" image_optimization"
+    "performance|cache_configuration|json|bash \${BASE_DIR}/scripts/reuse_section_key.sh backend_analysis cache_configuration bash \${BASE_DIR}/scripts/analyze_performance.sh \"\" cache_config"
+    "performance|database_indexes|json|bash \${BASE_DIR}/scripts/reuse_section_key.sh backend_analysis database_indexes bash \${BASE_DIR}/scripts/analyze_performance.sh \"\" database_indexes"
+    "performance|php_settings|json|bash \${BASE_DIR}/scripts/reuse_section_key.sh backend_analysis php_settings bash \${BASE_DIR}/scripts/analyze_performance.sh \"\" php_settings"
+    "performance|performance_modules|json|bash \${BASE_DIR}/scripts/reuse_section_key.sh backend_analysis performance_modules bash \${BASE_DIR}/scripts/analyze_performance.sh \"\" performance_modules"
+    "performance|views_performance|json|bash \${BASE_DIR}/scripts/reuse_section_key.sh backend_analysis views_performance bash \${BASE_DIR}/scripts/analyze_performance.sh \"\" views_analysis"
+    "performance|code_performance|json|bash \${BASE_DIR}/scripts/reuse_section_key.sh backend_analysis code_performance bash \${BASE_DIR}/scripts/analyze_performance.sh \"\" code_analysis"
+    "performance|css_js_aggregation|json|bash \${BASE_DIR}/scripts/reuse_section_key.sh backend_analysis css_js_aggregation bash \${BASE_DIR}/scripts/analyze_performance.sh \"\" aggregation"
+    "performance|image_optimization|json|bash \${BASE_DIR}/scripts/reuse_section_key.sh backend_analysis image_optimization bash \${BASE_DIR}/scripts/analyze_performance.sh \"\" image_optimization"
 
     # ============================================
     # Section: Configuration Management
@@ -337,10 +352,12 @@ COMMANDS=(
     # - Statistics: file counts, database configs, sync differences
     # Purpose: Ensure config management best practices and detect config drift
     # ============================================
+    # Sub-keys below are copied from full_analysis (already computed) instead of running the script again
+    # (fallback: run the script for that part if the full analysis failed)
     "configuration_management|full_analysis|json|bash \${BASE_DIR}/scripts/analyze_config_management.sh full_analysis"
-    "configuration_management|config_directory|json|bash \${BASE_DIR}/scripts/analyze_config_management.sh config_directory"
-    "configuration_management|sync_status|json|bash \${BASE_DIR}/scripts/analyze_config_management.sh sync_status"
-    "configuration_management|statistics|json|bash \${BASE_DIR}/scripts/analyze_config_management.sh statistics"
+    "configuration_management|config_directory|json|bash \${BASE_DIR}/scripts/reuse_section_key.sh full_analysis config_directory bash \${BASE_DIR}/scripts/analyze_config_management.sh config_directory"
+    "configuration_management|sync_status|json|bash \${BASE_DIR}/scripts/reuse_section_key.sh full_analysis sync_status bash \${BASE_DIR}/scripts/analyze_config_management.sh sync_status"
+    "configuration_management|statistics|json|bash \${BASE_DIR}/scripts/reuse_section_key.sh full_analysis statistics bash \${BASE_DIR}/scripts/analyze_config_management.sh statistics"
 
     # ============================================
     # Section: Accessibility (WCAG 2.1)
@@ -428,12 +445,14 @@ COMMANDS=(
     # - Redirect management (redirect, global_redirect modules)
     # Purpose: Ensure search engine optimization and discoverability
     # ============================================
+    # Sub-keys below are copied from full_analysis (already computed) instead of running the script again
+    # (fallback: run the script for that part if the full analysis failed)
     "seo_analysis|full_analysis|json|bash \${BASE_DIR}/scripts/analyze_seo.sh all"
-    "seo_analysis|seo_modules|json|bash \${BASE_DIR}/scripts/analyze_seo.sh seo_modules"
-    "seo_analysis|metatags|json|bash \${BASE_DIR}/scripts/analyze_seo.sh metatags"
-    "seo_analysis|url_aliases|json|bash \${BASE_DIR}/scripts/analyze_seo.sh url_aliases"
-    "seo_analysis|sitemap|json|bash \${BASE_DIR}/scripts/analyze_seo.sh sitemap"
-    "seo_analysis|robotstxt|json|bash \${BASE_DIR}/scripts/analyze_seo.sh robotstxt"
-    "seo_analysis|schema_markup|json|bash \${BASE_DIR}/scripts/analyze_seo.sh schema_markup"
-    "seo_analysis|redirects|json|bash \${BASE_DIR}/scripts/analyze_seo.sh redirects"
+    "seo_analysis|seo_modules|json|bash \${BASE_DIR}/scripts/reuse_section_key.sh full_analysis seo_modules bash \${BASE_DIR}/scripts/analyze_seo.sh seo_modules"
+    "seo_analysis|metatags|json|bash \${BASE_DIR}/scripts/reuse_section_key.sh full_analysis metatags bash \${BASE_DIR}/scripts/analyze_seo.sh metatags"
+    "seo_analysis|url_aliases|json|bash \${BASE_DIR}/scripts/reuse_section_key.sh full_analysis url_aliases bash \${BASE_DIR}/scripts/analyze_seo.sh url_aliases"
+    "seo_analysis|sitemap|json|bash \${BASE_DIR}/scripts/reuse_section_key.sh full_analysis sitemap bash \${BASE_DIR}/scripts/analyze_seo.sh sitemap"
+    "seo_analysis|robotstxt|json|bash \${BASE_DIR}/scripts/reuse_section_key.sh full_analysis robotstxt bash \${BASE_DIR}/scripts/analyze_seo.sh robotstxt"
+    "seo_analysis|schema_markup|json|bash \${BASE_DIR}/scripts/reuse_section_key.sh full_analysis schema_markup bash \${BASE_DIR}/scripts/analyze_seo.sh schema_markup"
+    "seo_analysis|redirects|json|bash \${BASE_DIR}/scripts/reuse_section_key.sh full_analysis redirects bash \${BASE_DIR}/scripts/analyze_seo.sh redirects"
 )

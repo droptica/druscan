@@ -9,128 +9,10 @@
 
   <!-- Mermaid.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
-  <style>
-    :root {
-      --droptica-primary: #0039FF;
-      --droptica-success: #10B981;
-      --droptica-warning: #F59E0B;
-      --droptica-danger: #DC2626;
-    }
-
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #f8f9fa;
-      padding: 20px;
-    }
-
-    h2 {
-      color: var(--droptica-primary);
-      border-bottom: 2px solid var(--droptica-primary);
-      padding-bottom: 10px;
-    }
-
-    .card {
-      border: none;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-
-    .permission-category {
-      background-color: var(--droptica-primary);
-      color: white;
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-size: 0.9em;
-      font-weight: 500;
-    }
-
-    .permission-list {
-      max-height: 300px;
-      overflow-y: auto;
-      border: 1px solid #e9ecef;
-      border-radius: 6px;
-      padding: 15px;
-      background-color: #f8f9fa;
-    }
-
-    .role-badge {
-      padding: 4px 8px;
-      border-radius: 12px;
-      font-size: 0.8em;
-      font-weight: 500;
-    }
-
-    .role-system { background-color: #e9ecef; color: #495057; }
-    .role-custom { background-color: #d1ecf1; color: #0c5460; }
-    .role-admin { background-color: #f8d7da; color: #721c24; }
-
-    .critical-perm {
-      background-color: #fff3cd;
-      border: 1px solid #ffeaa7;
-      padding: 8px 12px;
-      border-radius: 6px;
-      margin: 4px 0;
-    }
-
-    /* Mermaid Diagram Styles */
-    .diagram-section {
-      margin-top: 30px;
-      position: relative;
-    }
-
-    .mermaid {
-      text-align: center;
-      min-height: 400px;
-      cursor: grab;
-      overflow: hidden;
-      border: 2px solid #e0e0e0;
-      border-radius: 8px;
-      padding: 20px;
-      background-color: #fafafa;
-    }
-
-    .mermaid:active {
-      cursor: grabbing;
-    }
-
-    .zoom-controls {
-      position: absolute;
-      top: 10px;
-      right: 40px;
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      z-index: 1000;
-    }
-
-    .zoom-btn {
-      background: var(--droptica-primary);
-      color: white;
-      border: none;
-      width: 40px;
-      height: 40px;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 20px;
-      font-weight: bold;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-      transition: background 0.2s;
-    }
-
-    .zoom-btn:hover {
-      background: #0029CC;
-    }
-
-    .zoom-btn:active {
-      transform: scale(0.95);
-    }
-
-    .mermaid svg {
-      max-width: 100%;
-      height: auto;
-    }
-  </style>
+  <script src="../assets/diagram.js"></script>
+  <link rel="stylesheet" href="../assets/report.css">
 </head>
-<body>
+<body class="ds-page">
   <div class="container-fluid">
     <section class="card shadow-sm mb-4" id="user-roles-permissions">
       <div class="card-body p-4">
@@ -510,11 +392,10 @@
 
       container.innerHTML = html;
 
-      // Initialize Mermaid after content is rendered
-      setTimeout(() => {
-        mermaid.init(undefined, document.querySelectorAll('.mermaid'));
-        initializeDiagramControls();
-      }, 100);
+      // Draw the diagram with the shared viewer (assets/diagram.js)
+      if (typeof DruscanDiagram !== 'undefined') {
+        DruscanDiagram.enhanceAll();
+      }
     }
 
     function generateMermaidDiagram(roles, security) {
@@ -522,11 +403,6 @@
       html += '<div class="col-12">';
       html += '<h3 class="h5 mb-3"><i class="bi bi-diagram-3 me-2"></i>User Roles and Permissions Overview</h3>';
       html += '<div class="diagram-section">';
-      html += '<div class="zoom-controls">';
-      html += '<button class="zoom-btn" onclick="zoomIn(\'userRolesDiagram\')">+</button>';
-      html += '<button class="zoom-btn" onclick="zoomOut(\'userRolesDiagram\')">−</button>';
-      html += '<button class="zoom-btn" onclick="resetZoom(\'userRolesDiagram\')" style="font-size: 16px;">⟲</button>';
-      html += '</div>';
       html += '<div class="mermaid" id="userRolesDiagram">';
       html += 'graph TD\n';
       html += 'Users[User System] --> Anonymous[Anonymous User]\n';
@@ -569,118 +445,17 @@
       html += `Admin -.-> AdminCount[${adminCount} users assigned]\n\n`;
 
       // Styling
-      html += 'style Users fill:#0678BE,color:#fff\n';
-      html += 'style Anonymous fill:#CCCCCC,color:#000\n';
-      html += 'style Authenticated fill:#66B3E0,color:#000\n';
+      html += 'style Users fill:#030a3d,color:#fff,stroke:#030a3d\n';
+      html += 'style Anonymous fill:#eef1f8,color:#030a3d,stroke:#d5d8e4\n';
+      html += 'style Authenticated fill:#d9e1ff,color:#030a3d,stroke:#0039ff\n';
       customRoles.forEach((role, idx) => {
         const safeId = role.role_id.replace(/[^a-zA-Z0-9]/g, '_');
-        html += `style ${safeId} fill:#F59E0B,color:#000\n`;
+        html += `style ${safeId} fill:#fdecc8,color:#030a3d,stroke:#f59e0b\n`;
       });
-      html += 'style Admin fill:#DC2626,color:#fff\n';
+      html += 'style Admin fill:#dc2626,color:#fff,stroke:#dc2626\n';
 
       html += '</div></div></div></div>';
       return html;
-    }
-
-    // Initialize Mermaid
-    mermaid.initialize({
-      startOnLoad: true,
-      theme: 'default',
-      flowchart: {
-        useMaxWidth: false,
-        htmlLabels: true,
-        curve: 'basis'
-      },
-      themeVariables: {
-        fontSize: '16px'
-      }
-    });
-
-    // Zoom and pan functionality
-    const zoomLevels = {};
-    const panPositions = {};
-
-    function initializeDiagramControls() {
-      document.querySelectorAll('.diagram-section').forEach(section => {
-        const mermaidDiv = section.querySelector('.mermaid');
-        if (!mermaidDiv) return;
-
-        const diagramId = mermaidDiv.id;
-        zoomLevels[diagramId] = 1;
-        panPositions[diagramId] = { x: 0, y: 0 };
-
-        const svgElement = mermaidDiv.querySelector('svg');
-        if (svgElement) {
-          // Enable mouse wheel zoom
-          mermaidDiv.addEventListener('wheel', function(e) {
-            e.preventDefault();
-            const delta = e.deltaY > 0 ? -0.1 : 0.1;
-            const currentZoom = zoomLevels[diagramId];
-            const newZoom = Math.max(0.5, Math.min(5, currentZoom + delta));
-            zoomLevels[diagramId] = newZoom;
-            applyTransform(diagramId);
-          });
-
-          // Enable drag to pan
-          let isDragging = false;
-          let startX, startY;
-
-          mermaidDiv.addEventListener('mousedown', function(e) {
-            if (e.target.closest('svg')) {
-              isDragging = true;
-              startX = e.clientX - panPositions[diagramId].x;
-              startY = e.clientY - panPositions[diagramId].y;
-              mermaidDiv.style.cursor = 'grabbing';
-            }
-          });
-
-          mermaidDiv.addEventListener('mousemove', function(e) {
-            if (isDragging) {
-              panPositions[diagramId].x = e.clientX - startX;
-              panPositions[diagramId].y = e.clientY - startY;
-              applyTransform(diagramId);
-            }
-          });
-
-          mermaidDiv.addEventListener('mouseup', function() {
-            isDragging = false;
-            mermaidDiv.style.cursor = 'grab';
-          });
-
-          mermaidDiv.addEventListener('mouseleave', function() {
-            isDragging = false;
-            mermaidDiv.style.cursor = 'grab';
-          });
-        }
-      });
-    }
-
-    function applyTransform(diagramId) {
-      const mermaidDiv = document.getElementById(diagramId);
-      const svg = mermaidDiv.querySelector('svg');
-      if (svg) {
-        const zoom = zoomLevels[diagramId];
-        const pan = panPositions[diagramId];
-        svg.style.transform = `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`;
-      }
-    }
-
-    function zoomIn(diagramId) {
-      const currentZoom = zoomLevels[diagramId] || 1;
-      zoomLevels[diagramId] = Math.min(5, currentZoom + 0.2);
-      applyTransform(diagramId);
-    }
-
-    function zoomOut(diagramId) {
-      const currentZoom = zoomLevels[diagramId] || 1;
-      zoomLevels[diagramId] = Math.max(0.5, currentZoom - 0.2);
-      applyTransform(diagramId);
-    }
-
-    function resetZoom(diagramId) {
-      zoomLevels[diagramId] = 1;
-      panPositions[diagramId] = { x: 0, y: 0 };
-      applyTransform(diagramId);
     }
 
     // Render on page load

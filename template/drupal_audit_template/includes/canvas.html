@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Drupal Canvas</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="../assets/report.css">
+</head>
+<body class="ds-page">
+  <div class="container-fluid">
+    <h2 class="mb-4">Drupal Canvas</h2>
+    <p>Usage of Drupal Canvas, the visual page builder (<code>drupal/canvas</code>). Editors build pages from components. This section shows if Canvas is used, in which version, which pages are built with it and where its components come from.</p>
+
+    <div id="canvas-content">
+      <div class="text-center text-muted my-5">
+        <div class="spinner-border" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">Loading Canvas information...</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Safe placeholder handling - will be replaced during audit generation
+    let CANVAS_DATA;
+    try {
+      CANVAS_DATA = __CANVAS_JSON_PLACEHOLDER__;
+    } catch (e) {
+      // Placeholder not replaced yet - leave loading spinner visible
+      CANVAS_DATA = null;
+    }
+
+    function esc(value) {
+      const div = document.createElement('div');
+      div.textContent = value === null || value === undefined ? '' : String(value);
+      return div.innerHTML;
+    }
+
+    function yesNo(value, yesLabel, noLabel) {
+      return value
+        ? `<span class="badge bg-success"><i class="bi bi-check-circle"></i> ${yesLabel || 'Yes'}</span>`
+        : `<span class="badge bg-secondary"><i class="bi bi-x-circle"></i> ${noLabel || 'No'}</span>`;
+    }
+
+    function statTile(value, label, colour) {
+      return `<div class="col-6 col-md-3 mb-3"><div class="card text-center border-${colour} h-100"><div class="card-body">
+        <h4 class="text-${colour} mb-1">${esc(value)}</h4><p class="mb-0">${esc(label)}</p></div></div></div>`;
+    }
+
+    function originBadge(origin) {
+      const map = { custom: 'warning', contrib: 'primary', core: 'secondary', unknown: 'secondary' };
+      return `<span class="badge bg-${map[origin] || 'secondary'}">${esc(origin || 'unknown')}</span>`;
+    }
+
+    function renderCanvas() {
+      const container = document.getElementById('canvas-content');
+
+      if (!CANVAS_DATA || typeof CANVAS_DATA !== 'object') {
+        // Keep loading spinner if data is not available
+        return;
+      }
+
+      const data = CANVAS_DATA.analysis || CANVAS_DATA;
+
+      if (typeof data !== 'object' || !data.module) {
+        container.innerHTML = '<div class="alert alert-warning"><i class="bi bi-exclamation-triangle-fill me-2"></i><strong>No data:</strong> Canvas analysis did not return data. Check <code>errors.log</code> in the report folder.</div>';
+        return;
+      }
+
+      const mod = data.module;
+      const summary = data.summary || {};
+      let html = '';
+
+      // ---------------------------------------------------------------
+      // Module status
+      // ---------------------------------------------------------------
+      if (!mod.enabled) {
+        html += `<div class="alert alert-secondary">
+          <i class="bi bi-info-circle-fill me-2"></i>
+          <strong>Canvas is not used on this site.</strong>
+          ${mod.in_codebase
+            ? `The module is in the codebase (version ${esc(mod.version || 'unknown')}) but it is not enabled.`
+            : 'The module <code>drupal/canvas</code> is not in the codebase.'}
+        </div>`;
+        html += relatedModules(mod);
+        container.innerHTML = html;
+        return;
+      }
+
+      html += `<div class="alert alert-success">
+        <i class="bi bi-check-circle-fill me-2"></i>
+        <strong>Canvas is enabled.</strong> Version: <strong>${esc(mod.version || 'unknown')}</strong>
+      </div>`;
+
+      // ---------------------------------------------------------------
+      // Summary tiles
+      // ---------------------------------------------------------------
+      html += '<div class="row">';
+      html += statTile(summary.pages_total || 0, 'Canvas Pages', 'primary');
+      html += statTile(`${summary.components_enabled || 0} / ${summary.components_total || 0}`, 'Components Enabled', 'success');
+      html += statTile(summary.custom_code_components || 0, 'Custom Code Components', 'warning');
+      html += statTile(summary.in_browser_code_components || 0, 'Created in Canvas Editor', 'info');
+      html += '</div>';
+
+      html += '<div class="row">';
+      html += statTile(summary.content_templates || 0, 'Content Templates', 'primary');
+      html += statTile(summary.page_regions || 0, 'Page Regions', 'primary');
+      html += statTile(summary.patterns || 0, 'Patterns', 'primary');
+      html += statTile(summary.pages_unpublished || 0, 'Unpublished Pages', 'secondary');
+      html += '</div>';
+
+      // ---------------------------------------------------------------
+      // Homepage
+      // ---------------------------------------------------------------
+      const home = data.homepage || {};
+      html += '<h3><i class="bi bi-house-door"></i> Homepage</h3>';
+      html += home.is_canvas_page
+        ? `<div class="alert alert-info"><i class="bi bi-info-circle-fill me-2"></i>The homepage (<code>${esc(home.front_page)}</code>) is a Canvas page: <strong>${esc(home.title)}</strong> (ID ${esc(home.page_id)}).</div>`
+        : `<p class="text-muted">The homepage (<code>${esc(home.front_page || '/node')}</code>) is not a Canvas page.</p>`;
+
+      // ---------------------------------------------------------------
+      // Pages
+      // ---------------------------------------------------------------
+      const pages = data.pages || {};
+      const pageItems = pages.items || [];
+      html += '<h3><i class="bi bi-file-earmark-richtext"></i> Pages Built with Canvas</h3>';
+      if (pages.error) {
+        html += `<div class="alert alert-warning"><strong>Could not read pages:</strong> ${esc(pages.error)}</div>`;
+      }
+      if (pageItems.length === 0) {
+        html += '<p class="text-muted">No Canvas pages found.</p>';
+      } else {
+        html += `<p class="text-muted">${esc(pages.total)} page(s) in total: ${esc(summary.pages_published || 0)} published, ${esc(summary.pages_unpublished || 0)} unpublished.${pages.total > pages.listed ? ` Showing the ${esc(pages.listed)} most recently changed.` : ''}</p>`;
+        html += '<div class="table-responsive"><table class="table table-hover align-middle"><thead><tr>';
+        html += '<th>Title</th><th>Path</th><th>Status</th><th>Components</th><th>Different Components</th><th>Languages</th><th>Last Changed</th>';
+        html += '</tr></thead><tbody>';
+        pageItems.forEach(page => {
+          html += `<tr>
+            <td><strong>${esc(page.title)}</strong>${page.is_homepage ? ' <span class="badge bg-primary">Homepage</span>' : ''}<br><small class="text-muted">ID ${esc(page.id)}</small></td>
+            <td class="text-nowrap"><code>${esc(page.path)}</code></td>
+            <td>${page.published ? '<span class="badge bg-success">Published</span>' : '<span class="badge bg-secondary">Unpublished</span>'}</td>
+            <td>${esc(page.components_count)}</td>
+            <td>${esc(page.unique_components)}</td>
+            <td>${(page.languages || []).map(lang => `<span class="badge bg-secondary">${esc(lang)}</span>`).join(' ')}</td>
+            <td>${esc(page.changed || '-')}</td>
+          </tr>`;
+        });
+        html += '</tbody></table></div>';
+      }
+
+      // ---------------------------------------------------------------
+      // Components by source
+      // ---------------------------------------------------------------
+      const components = data.components || {};
+      html += '<h3><i class="bi bi-boxes"></i> Components by Source</h3>';
+      html += '<p class="text-muted">Where the components available in Canvas come from. "Code-defined" components live in the codebase (theme or module). "Created in Canvas" components were written in the in-browser code editor and live only in configuration.</p>';
+      const bySource = components.by_source || [];
+      if (bySource.length === 0) {
+        html += '<p class="text-muted">No components found.</p>';
+      } else {
+        html += '<div class="table-responsive"><table class="table align-middle"><thead><tr>';
+        html += '<th>Source</th><th>Total</th><th>Enabled</th><th>Provided By</th>';
+        html += '</tr></thead><tbody>';
+        bySource.forEach(source => {
+          const providers = (source.providers || []).slice(0, 8).map(p =>
+            `<span class="d-inline-block me-2 mb-1"><code>${esc(p.provider)}</code> × ${esc(p.count)} ${originBadge(p.origin)}</span>`).join('');
+          const more = (source.providers || []).length > 8 ? `<small class="text-muted">+ ${source.providers.length - 8} more</small>` : '';
+          html += `<tr>
+            <td><strong>${esc(source.label)}</strong><br><small class="text-muted">${esc(source.description)}</small></td>
+            <td>${esc(source.total)}</td>
+            <td>${esc(source.enabled)}</td>
+            <td>${providers}${more}</td>
+          </tr>`;
+        });
+        html += '</tbody></table></div>';
+      }
+
+      // ---------------------------------------------------------------
+      // Custom components
+      // ---------------------------------------------------------------
+      html += '<h3><i class="bi bi-code-slash"></i> Custom Components</h3>';
+      const custom = components.custom || [];
+      const inBrowser = components.in_browser || [];
+
+      if (custom.length === 0 && inBrowser.length === 0) {
+        html += '<div class="alert alert-info"><i class="bi bi-info-circle-fill me-2"></i><strong>No custom components.</strong> All components come from contributed or core code. There is no project-specific component code to take over.</div>';
+      } else {
+        html += `<div class="alert alert-warning"><i class="bi bi-exclamation-triangle-fill me-2"></i><strong>${custom.length + inBrowser.length} custom component(s).</strong> Custom components are project-specific code that the new team must maintain. Components created in the Canvas editor are not in the Git repository as files - they live in configuration.</div>`;
+      }
+
+      if (custom.length > 0) {
+        html += '<h5>Written in code (custom theme or module)</h5>';
+        html += '<div class="table-responsive"><table class="table table-sm align-middle"><thead><tr>';
+        html += '<th>Component</th><th>Provided By</th><th>Status</th><th>Uses</th>';
+        html += '</tr></thead><tbody>';
+        custom.forEach(component => {
+          html += `<tr>
+            <td><strong>${esc(component.label)}</strong><br><code>${esc(component.id)}</code></td>
+            <td><code>${esc(component.provider)}</code> <small class="text-muted">(${esc(component.provider_kind || 'unknown')})</small></td>
+            <td>${yesNo(component.enabled, 'Enabled', 'Disabled')}</td>
+            <td>${esc(component.uses)}</td>
+          </tr>`;
+        });
+        html += '</tbody></table></div>';
+      }
+
+      if (inBrowser.length > 0) {
+        html += '<h5>Created in the Canvas code editor</h5>';
+        html += '<div class="table-responsive"><table class="table table-sm align-middle"><thead><tr>';
+        html += '<th>Component</th><th>Status</th><th>Props</th><th>Slots</th><th>Own CSS</th><th>Uses</th>';
+        html += '</tr></thead><tbody>';
+        inBrowser.forEach(component => {
+          html += `<tr>
+            <td><strong>${esc(component.label)}</strong><br><code>${esc(component.id)}</code></td>
+            <td>${yesNo(component.enabled, 'Enabled', 'Disabled')}</td>
+            <td>${esc(component.props_count)}</td>
+            <td>${esc(component.slots_count)}</td>
+            <td>${component.has_css ? 'Yes' : 'No'}</td>
+            <td>${esc(component.uses)}</td>
+          </tr>`;
+        });
+        html += '</tbody></table></div>';
+      }
+
+      const unused = components.unused_custom || [];
+      if (unused.length > 0) {
+        html += `<div class="alert alert-secondary"><strong>${unused.length} enabled custom component(s) are not used anywhere:</strong> ${unused.map(c => `<code>${esc(c.id)}</code>`).join(', ')}</div>`;
+      }
+
+      // ---------------------------------------------------------------
+      // Most used components
+      // ---------------------------------------------------------------
+      const mostUsed = components.most_used || [];
+      if (mostUsed.length > 0) {
+        const max = Math.max.apply(null, mostUsed.map(c => c.uses)) || 1;
+        html += '<h3><i class="bi bi-bar-chart"></i> Most Used Components</h3>';
+        html += '<p class="text-muted">How many times a component is placed on pages, content templates, page regions and patterns.</p>';
+        html += '<div class="table-responsive"><table class="table table-sm align-middle"><thead><tr>';
+        html += '<th style="width: 30%;">Component</th><th style="width: 10%;">Uses</th><th></th>';
+        html += '</tr></thead><tbody>';
+        mostUsed.forEach(component => {
+          html += `<tr>
+            <td><strong>${esc(component.label)}</strong><br><code>${esc(component.id)}</code></td>
+            <td>${esc(component.uses)}</td>
+            <td><div class="progress"><div class="progress-bar" style="width: ${Math.round(component.uses / max * 100)}%"></div></div></td>
+          </tr>`;
+        });
+        html += '</tbody></table></div>';
+      }
+
+      // ---------------------------------------------------------------
+      // Content templates
+      // ---------------------------------------------------------------
+      const templates = data.content_templates || [];
+      html += '<h3><i class="bi bi-layout-text-window"></i> Content Templates</h3>';
+      html += '<p class="text-muted">Canvas layouts used to display structured content (e.g. an article in the "full" view mode).</p>';
+      if (templates.length === 0) {
+        html += '<p class="text-muted">No content templates.</p>';
+      } else {
+        html += '<div class="table-responsive"><table class="table table-sm align-middle"><thead><tr>';
+        html += '<th>Entity Type</th><th>Bundle</th><th>View Mode</th><th>Status</th><th>Components</th>';
+        html += '</tr></thead><tbody>';
+        templates.forEach(template => {
+          html += `<tr>
+            <td>${esc(template.entity_type)}</td>
+            <td><code>${esc(template.bundle)}</code></td>
+            <td><code>${esc(template.view_mode)}</code></td>
+            <td>${yesNo(template.enabled, 'Enabled', 'Disabled')}</td>
+            <td>${esc(template.components_count)}</td>
+          </tr>`;
+        });
+        html += '</tbody></table></div>';
+      }
+
+      // ---------------------------------------------------------------
+      // Page regions and patterns
+      // ---------------------------------------------------------------
+      const regions = data.page_regions || [];
+      html += '<h3><i class="bi bi-layout-three-columns"></i> Page Regions</h3>';
+      html += '<p class="text-muted">Theme regions (e.g. header, footer) managed with Canvas instead of the block layout.</p>';
+      if (regions.length === 0) {
+        html += '<p class="text-muted">No page regions are managed with Canvas.</p>';
+      } else {
+        html += '<div class="table-responsive"><table class="table table-sm align-middle"><thead><tr>';
+        html += '<th>Theme</th><th>Region</th><th>Status</th><th>Components</th>';
+        html += '</tr></thead><tbody>';
+        regions.forEach(region => {
+          html += `<tr>
+            <td><code>${esc(region.theme)}</code></td>
+            <td><code>${esc(region.region)}</code></td>
+            <td>${yesNo(region.enabled, 'Enabled', 'Disabled')}</td>
+            <td>${esc(region.components_count)}</td>
+          </tr>`;
+        });
+        html += '</tbody></table></div>';
+      }
+
+      const patterns = data.patterns || [];
+      if (patterns.length > 0) {
+        html += '<h3><i class="bi bi-grid-3x3-gap"></i> Patterns</h3>';
+        html += '<p class="text-muted">Reusable groups of components saved by editors.</p>';
+        html += '<div class="table-responsive"><table class="table table-sm align-middle"><thead><tr>';
+        html += '<th>Pattern</th><th>Status</th><th>Components</th>';
+        html += '</tr></thead><tbody>';
+        patterns.forEach(pattern => {
+          html += `<tr>
+            <td><strong>${esc(pattern.label)}</strong><br><code>${esc(pattern.id)}</code></td>
+            <td>${yesNo(pattern.enabled, 'Enabled', 'Disabled')}</td>
+            <td>${esc(pattern.components_count)}</td>
+          </tr>`;
+        });
+        html += '</tbody></table></div>';
+      }
+
+      html += relatedModules(mod);
+
+      container.innerHTML = html;
+    }
+
+    function relatedModules(mod) {
+      const related = mod.related_modules || [];
+      if (related.length === 0) {
+        return '';
+      }
+      let html = '<h3><i class="bi bi-puzzle"></i> Related Modules</h3>';
+      html += '<div class="table-responsive"><table class="table table-sm align-middle"><thead><tr>';
+      html += '<th>Module</th><th>Type</th><th>Status</th><th>Version</th>';
+      html += '</tr></thead><tbody>';
+      related.forEach(module => {
+        html += `<tr>
+          <td><strong>${esc(module.label)}</strong><br><code>${esc(module.name)}</code></td>
+          <td>${module.type === 'canvas_submodule' ? 'Part of Canvas' : 'Separate module'}</td>
+          <td>${yesNo(module.enabled, 'Enabled', 'Disabled')}</td>
+          <td>${esc(module.version || '-')}</td>
+        </tr>`;
+      });
+      html += '</tbody></table></div>';
+      return html;
+    }
+
+    document.addEventListener('DOMContentLoaded', renderCanvas);
+  </script>
+</body>
+</html>

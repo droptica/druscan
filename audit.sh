@@ -6,6 +6,73 @@ log() {
     echo "[$(date '+%H:%M:%S')] [$1] ${@:2}"
 }
 
+# ============================================
+# Issue tracking
+# Exit codes: 0 = audit completed without errors
+#             1 = fatal error (bad parameters, missing tools, DDEV not accessible)
+#             2 = audit completed, but at least one command or section failed
+# Errors affect the exit code, warnings do not.
+# Details (command, exit code, stderr) are saved to: {output_dir}/errors.log
+# ============================================
+ERROR_LIST=()
+WARNING_LIST=()
+ERRORS_LOG=""
+
+# Usage: record_issue <ERROR|WARN> <section> <key> <message> [exit_code] [command] [output_file]
+record_issue() {
+    local level="$1"
+    local section="$2"
+    local key="$3"
+    local message="$4"
+    local exit_code="${5:-}"
+    local command="${6:-}"
+    local output_file="${7:-}"
+    local label="$section"
+
+    if [ -n "$key" ]; then
+        label="${section}.${key}"
+    fi
+
+    if [ "$level" = "ERROR" ]; then
+        ERROR_LIST+=("${label}: ${message}")
+    else
+        WARNING_LIST+=("${label}: ${message}")
+    fi
+
+    log "$level" "  ✗ ${label}: ${message}"
+
+    if [ -n "$ERRORS_LOG" ]; then
+        {
+            echo "[$(date '+%Y-%m-%d %H:%M:%S')] [$level] ${label}"
+            echo "  message:   ${message}"
+            if [ -n "$exit_code" ]; then
+                echo "  exit code: ${exit_code}"
+            fi
+            if [ -n "$command" ]; then
+                echo "  command:   ${command}"
+            fi
+            if [ -n "$output_file" ] && [ -s "$output_file" ]; then
+                echo "  output (last 40 lines):"
+                tail -n 40 "$output_file" | sed 's/^/    /'
+            fi
+            echo ""
+        } >> "$ERRORS_LOG"
+    fi
+}
+
+# Print unique section names from the COMMANDS registry (one per line, registry order)
+list_sections() {
+    local seen=""
+    local cmd_line section rest
+    for cmd_line in "${COMMANDS[@]}"; do
+        IFS='|' read -r section rest <<< "$cmd_line"
+        if [ -n "$section" ] && ! echo "$seen" | grep -qx "$section"; then
+            seen="${seen}${section}"$'\n'
+            echo "$section"
+        fi
+    done
+}
+
 # Check if jq is installed (required for JSON processing)
 check_jq() {
     if ! command -v jq &> /dev/null; then
@@ -143,7 +210,25 @@ fi
 SITE_NAME="$1"
 PRODUCTION_URL="$2"
 SINGLE_SECTION="$3"
-SITE_PATH="$(pwd)/drupal_sites/${SITE_NAME}"
+BASE_DIR="$(pwd)"
+SITE_PATH="${BASE_DIR}/drupal_sites/${SITE_NAME}"
+
+# Load commands registry (needed early to validate the section name)
+COMMANDS_REGISTRY="${BASE_DIR}/commands_registry.sh"
+if [ ! -f "$COMMANDS_REGISTRY" ]; then
+    log ERROR "Commands registry not found: $COMMANDS_REGISTRY"
+    log INFO "Run audit.sh from the DRUSCAN repository root"
+    exit 1
+fi
+source "$COMMANDS_REGISTRY"
+
+# Validate section name before doing any work
+if [ -n "$SINGLE_SECTION" ] && ! list_sections | grep -qx "$SINGLE_SECTION"; then
+    log ERROR "Unknown section: $SINGLE_SECTION"
+    log INFO "Available sections:"
+    list_sections | sed 's/^/  - /'
+    exit 1
+fi
 
 # Validate production URL format
 if [[ ! "$PRODUCTION_URL" =~ ^(http|https|file)://.*$ ]]; then
@@ -179,9 +264,7 @@ if [ ! -d "$SITE_PATH" ]; then
 fi
 
 TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')
-BASE_DIR="$(pwd)"
 OUTPUT_DIR="${BASE_DIR}/audits_reports/${TIMESTAMP}_${SITE_NAME}"
-COMMANDS_DIR="${BASE_DIR}/commands"
 OUTPUT_SUBDIR="json"  # Subdirectory name for audit output files (txt or json)
 OUTPUT_EXT="json"     # File extension for audit output files (txt or json)
 
@@ -196,6 +279,10 @@ mkdir -p "$OUTPUT_DIR/${OUTPUT_SUBDIR}" || {
     log ERROR "Failed to create ${OUTPUT_SUBDIR} subdirectory"
     exit 1
 }
+
+# From now on issues are also written to errors.log (created only when needed)
+ERRORS_LOG="${OUTPUT_DIR}/errors.log"
+CMD_OUTPUT_FILE="${OUTPUT_DIR}/.last_command_output"
 
 log INFO "Copying audit template folder"
 TEMPLATE_DIR="${BASE_DIR}/template/drupal_audit_template"
@@ -226,9 +313,35 @@ else
     if ddev start >/dev/null 2>&1; then
         log INFO "DDEV started successfully"
     else
-        log WARN "Could not start DDEV automatically"
-        log WARN "Project may be registered under different path or already running"
-        log INFO "Continuing with audit (commands may fail if DDEV is not accessible)"
+        log ERROR "DDEV is not accessible in: $SITE_PATH"
+        log INFO "Start the project manually (ddev start) and check 'ddev describe', then run the audit again"
+        rm -rf "$OUTPUT_DIR"
+        exit 1
+    fi
+fi
+
+# Enable cached ddev wrapper (see scripts/ddev_cached.sh)
+# Repeated read-only calls like "ddev drush pm:list --format=json" run only once per audit.
+# Disable with: DRUSCAN_NO_CACHE=1 ./audit.sh ...
+DDEV_CALLS_SAVED=0
+DDEV_CACHE_WRAPPER="${BASE_DIR}/scripts/ddev_cached.sh"
+if [ "${DRUSCAN_NO_CACHE:-0}" = "1" ]; then
+    log INFO "ddev command cache disabled (DRUSCAN_NO_CACHE=1)"
+elif [ ! -f "$DDEV_CACHE_WRAPPER" ]; then
+    log WARN "ddev cache wrapper not found: $DDEV_CACHE_WRAPPER (continuing without cache)"
+else
+    DRUSCAN_REAL_DDEV="$(command -v ddev)"
+    DRUSCAN_CACHE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/druscan_cache.XXXXXX")"
+    if [ -n "$DRUSCAN_REAL_DDEV" ] && [ -d "$DRUSCAN_CACHE_DIR" ]; then
+        mkdir -p "${DRUSCAN_CACHE_DIR}/bin"
+        cp "$DDEV_CACHE_WRAPPER" "${DRUSCAN_CACHE_DIR}/bin/ddev"
+        chmod +x "${DRUSCAN_CACHE_DIR}/bin/ddev"
+        export DRUSCAN_REAL_DDEV DRUSCAN_CACHE_DIR
+        export PATH="${DRUSCAN_CACHE_DIR}/bin:${PATH}"
+        trap 'rm -rf "$DRUSCAN_CACHE_DIR"' EXIT
+        log INFO "ddev command cache enabled"
+    else
+        log WARN "Could not set up ddev command cache (continuing without cache)"
     fi
 fi
 
@@ -238,7 +351,11 @@ AUDIT_DATE=$(date '+%Y-%m-%d')
 AUDIT_SITE_NAME="${SITE_NAME}"
 
 # Try to get Drupal version from DDEV
-DRUPAL_VERSION=$(ddev drush status --fields=drupal-version --format=string 2>/dev/null || echo "Unknown")
+DRUPAL_VERSION=$(ddev drush status --fields=drupal-version --format=string 2>/dev/null)
+if [ -z "$DRUPAL_VERSION" ]; then
+    DRUPAL_VERSION="Unknown"
+    record_issue WARN "setup" "drupal_version" "Could not read Drupal version with drush (is Drupal installed and bootstrapped?)"
+fi
 
 # Get system username as auditor (can be overridden with AUDITOR env var)
 AUDIT_BY="${AUDITOR:-$(whoami)}"
@@ -279,16 +396,6 @@ export DOCROOT
 log INFO "Production URL set: $PRODUCTION_URL"
 export BASE_URL="$PRODUCTION_URL"
 
-# Load commands registry
-COMMANDS_REGISTRY="${BASE_DIR}/commands_registry.sh"
-if [ ! -f "$COMMANDS_REGISTRY" ]; then
-    log ERROR "Commands registry not found: $COMMANDS_REGISTRY"
-    exit 1
-fi
-
-log INFO "Loading commands registry"
-source "$COMMANDS_REGISTRY"
-
 if [ -n "$SINGLE_SECTION" ]; then
     log INFO "Running single section mode: $SINGLE_SECTION"
 else
@@ -298,24 +405,15 @@ fi
 EXECUTED_COUNT=0
 EXECUTED_SECTIONS=()
 
-# Get unique sections from COMMANDS array (without associative arrays)
-SECTIONS_LIST=""
-for cmd_line in "${COMMANDS[@]}"; do
-    IFS='|' read -r section key type command <<< "$cmd_line"
-    if [ -n "$section" ]; then
-        # Skip if single section mode and this is not the requested section
-        if [ -n "$SINGLE_SECTION" ] && [ "$section" != "$SINGLE_SECTION" ]; then
-            continue
-        fi
-        # Add section if not already in list
-        if ! echo "$SECTIONS_LIST" | grep -q "^${section}$"; then
-            SECTIONS_LIST="${SECTIONS_LIST}${section}"$'\n'
-        fi
-    fi
-done
+# Get unique sections from COMMANDS array (single section name was validated earlier)
+if [ -n "$SINGLE_SECTION" ]; then
+    SECTIONS_LIST="$SINGLE_SECTION"
+else
+    SECTIONS_LIST="$(list_sections)"
+fi
 
 # Process each section
-for section in $(echo "$SECTIONS_LIST" | grep -v '^$'); do
+for section in $SECTIONS_LIST; do
     log INFO "Processing section: $section"
 
     output_name="${section}.${OUTPUT_EXT}"
@@ -323,6 +421,11 @@ for section in $(echo "$SECTIONS_LIST" | grep -v '^$'); do
 
     # Initialize JSON output with empty object
     echo "{}" > "$output_path"
+
+    # Path to this section's JSON collected so far ({"key": value, ...}).
+    # Registry commands can reuse results of earlier keys from the same section, e.g.:
+    #   jq '.full_analysis.sitemap' "${SECTION_JSON}"
+    export SECTION_JSON="$output_path"
 
     # Process commands for this section
     for cmd_line in "${COMMANDS[@]}"; do
@@ -337,13 +440,19 @@ for section in $(echo "$SECTIONS_LIST" | grep -v '^$'); do
 
         # Execute command in site directory (use eval for proper quote handling)
         cd "$SITE_PATH"
+        : > "$CMD_OUTPUT_FILE"
         if [ "$cmd_type" = "json" ]; then
             # For JSON: keep stderr separate (only capture stdout for clean JSON)
-            # Redirect stderr to original stderr (fd 2), not to stdout
-            result=$(eval "$cmd_command" 2>&2)
+            # stderr goes to a file, so it can be saved to errors.log if the command fails
+            result=$(eval "$cmd_command" 2>"$CMD_OUTPUT_FILE")
+            cmd_exit_code=$?
+            # Show stderr in the terminal as before (progress messages from helper scripts)
+            cat "$CMD_OUTPUT_FILE" >&2
         else
             # For text: combine stderr and stdout
             result=$(eval "$cmd_command" 2>&1)
+            cmd_exit_code=$?
+            printf '%s\n' "$result" > "$CMD_OUTPUT_FILE"
         fi
         cd "$BASE_DIR"
 
@@ -351,13 +460,34 @@ for section in $(echo "$SECTIONS_LIST" | grep -v '^$'); do
         current_json=$(cat "$output_path")
         if [ "$cmd_type" = "json" ]; then
             # Parse as JSON object
-            echo "$current_json" | jq --arg key "$cmd_key" --argjson value "$result" '. + {($key): $value}' > "$output_path" 2>/dev/null || {
-                log ERROR "Failed to parse JSON for key: $cmd_key"
+            if [ -n "$result" ] && echo "$current_json" | jq --arg key "$cmd_key" --argjson value "$result" '. + {($key): $value}' > "$output_path" 2>/dev/null; then
+                if [ "$cmd_exit_code" -ne 0 ]; then
+                    record_issue WARN "$section" "$cmd_key" "Command returned exit code ${cmd_exit_code} (JSON output was saved)" "$cmd_exit_code" "$cmd_command" "$CMD_OUTPUT_FILE"
+                else
+                    # Helper scripts report their own problems as {"error": "..."}
+                    script_error=$(echo "$result" | jq -r 'if type == "object" and (.error | type) == "string" and .error != "" then .error else empty end' 2>/dev/null | head -1)
+                    if [ -n "$script_error" ]; then
+                        record_issue WARN "$section" "$cmd_key" "Script reported: ${script_error}" "" "$cmd_command" "$CMD_OUTPUT_FILE"
+                    fi
+                fi
+            else
+                if [ -z "$result" ]; then
+                    record_issue ERROR "$section" "$cmd_key" "Command produced no output (expected JSON)" "$cmd_exit_code" "$cmd_command" "$CMD_OUTPUT_FILE"
+                else
+                    # Save the invalid output next to stderr, so the cause is visible in errors.log
+                    printf '%s\n' "--- stdout (invalid JSON) ---" "$result" >> "$CMD_OUTPUT_FILE"
+                    record_issue ERROR "$section" "$cmd_key" "Command output is not valid JSON" "$cmd_exit_code" "$cmd_command" "$CMD_OUTPUT_FILE"
+                fi
                 echo "$current_json" | jq --arg key "$cmd_key" --arg value "ERROR: Invalid JSON" '. + {($key): $value}' > "$output_path"
-            }
+            fi
         else
             # Treat as text string
             echo "$current_json" | jq --arg key "$cmd_key" --arg value "$result" '. + {($key): $value}' > "$output_path"
+            if [ "$cmd_exit_code" -ne 0 ]; then
+                record_issue WARN "$section" "$cmd_key" "Command returned exit code ${cmd_exit_code}" "$cmd_exit_code" "$cmd_command" "$CMD_OUTPUT_FILE"
+            elif [ -z "$result" ]; then
+                record_issue WARN "$section" "$cmd_key" "Command produced no output" "$cmd_exit_code" "$cmd_command"
+            fi
         fi
     done
 
@@ -391,7 +521,9 @@ for section in $(echo "$SECTIONS_LIST" | grep -v '^$'); do
                     while IFS= read -r html_file; do
                         html_filename=$(basename "$html_file")
                         log INFO "     - ${html_filename}"
-                        sed -i.bak "s|${placeholder}|${json_escaped}|g" "$html_file"
+                        if ! sed -i.bak "s|${placeholder}|${json_escaped}|g" "$html_file"; then
+                            record_issue ERROR "$section" "" "Failed to inject JSON into HTML template: ${html_filename}"
+                        fi
                         rm -f "${html_file}.bak"
                     done <<< "$html_files_with_placeholder"
                     log INFO "  → JSON injected successfully"
@@ -399,10 +531,10 @@ for section in $(echo "$SECTIONS_LIST" | grep -v '^$'); do
                     log WARN "  → No HTML templates found with placeholder: ${placeholder}"
                 fi
             else
-                log ERROR "  → Failed to extract JSON content for injection"
+                record_issue ERROR "$section" "" "Failed to extract JSON content for HTML injection"
             fi
         else
-            log ERROR "JSON validation failed for: $section"
+            record_issue ERROR "$section" "" "Section JSON file is invalid: ${OUTPUT_SUBDIR}/${output_name}"
         fi
     else
         # Add footer for non-JSON formats
@@ -418,6 +550,12 @@ ELAPSED_TIME=$((END_TIME - START_TIME))
 ELAPSED_MINUTES=$((ELAPSED_TIME / 60))
 ELAPSED_SECONDS=$((ELAPSED_TIME % 60))
 
+rm -f "$CMD_OUTPUT_FILE"
+
+if [ -n "${DRUSCAN_CACHE_DIR:-}" ] && [ -f "${DRUSCAN_CACHE_DIR}/hits.log" ]; then
+    DDEV_CALLS_SAVED=$(wc -l < "${DRUSCAN_CACHE_DIR}/hits.log" | tr -d ' ')
+fi
+
 log INFO "All sections processed"
 log INFO "Results saved in: $OUTPUT_DIR"
 
@@ -427,6 +565,7 @@ echo "EXECUTION SUMMARY"
 echo "======================================"
 echo "Total execution time: ${ELAPSED_MINUTES}m ${ELAPSED_SECONDS}s"
 echo "Sections executed: ${EXECUTED_COUNT}"
+echo "Repeated ddev calls answered from cache: ${DDEV_CALLS_SAVED}"
 echo ""
 echo "Executed sections:"
 for section in "${EXECUTED_SECTIONS[@]}"; do
@@ -436,4 +575,24 @@ echo ""
 echo "Report location:"
 echo "  - HTML: ${OUTPUT_DIR}/html/index.html"
 echo "  - JSON: ${OUTPUT_DIR}/json/"
+echo ""
+echo "Errors: ${#ERROR_LIST[@]}"
+for issue in "${ERROR_LIST[@]}"; do
+    echo "  ✗ $issue"
+done
+echo "Warnings: ${#WARNING_LIST[@]}"
+for issue in "${WARNING_LIST[@]}"; do
+    echo "  ! $issue"
+done
+if [ -f "$ERRORS_LOG" ]; then
+    echo ""
+    echo "Details (commands, exit codes, output): ${ERRORS_LOG}"
+fi
 echo "======================================"
+
+if [ "$EXECUTED_COUNT" -eq 0 ] || [ "${#ERROR_LIST[@]}" -gt 0 ]; then
+    log ERROR "Audit finished with errors - the report may be incomplete"
+    exit 2
+fi
+
+exit 0

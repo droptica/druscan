@@ -1,20 +1,38 @@
+---
+name: drupal-audit
+description: Runs a full DRUSCAN audit of a Drupal site and writes the AI analysis into the HTML report (executive summary and action items). Use when the user asks to audit a Drupal site, run DRUSCAN, or generate a Drupal audit report for a site linked in drupal_sites/. Needs the site name and the production URL.
+license: MIT
+compatibility: Run from the DRUSCAN repository root. Requires bash, jq and DDEV with the audited site running locally. Lighthouse CLI and Pa11y CLI are optional (performance and accessibility sections).
+---
+
 # Drupal Audit Tool
 
 ## Prerequisites
 
-1. **Required Parameter**: Ensure you have the project name parameter `[name]`. If not provided, stop and request it.
-2. **Template Review**: Familiarize yourself with template structure in:
+1. **Required Parameters**: You need both values below. If either is missing, stop and ask the user for it.
+   - `[site_name]` - name of the symlink in `./drupal_sites/` (e.g., `mysite.com`)
+   - `[production_url]` - production URL starting with `http://` or `https://` (e.g., `https://mysite.com`), used by the performance, accessibility and legal compliance sections
+2. **Site Check**: Verify that `./drupal_sites/[site_name]` exists. If not, stop and tell the user to link the site first (see README "Setup").
+3. **Template Review**: Familiarize yourself with template structure in:
    - `./template/drupal_audit_template/index.html` - main report structure
    - `./template/drupal_audit_template/includes/*.html` - section templates with placeholder guidance
 
 ## Execution Steps
 
 ### 1. Run Audit Script
+
+Run from the repository root:
+
 ```bash
-./audit.sh [project_name]
+./audit.sh [site_name] [production_url]
 ```
 
 **Note for AI/LLM:** The audit script execution may take **5-15 minutes** depending on site complexity (number of modules, content volume, database size). Be patient and wait for the script to complete. Do not assume it has failed if it takes several minutes.
+
+**Check the exit code and the "Errors" / "Warnings" lists in the execution summary:**
+- `0` - audit completed, continue.
+- `1` - audit did not run (bad parameters, unknown section, DDEV not accessible). Stop and report the error message to the user.
+- `2` - audit completed, but some commands failed. Read `[report_path]/errors.log`, tell the user which sections are affected, and do not draw conclusions from data marked `ERROR: Invalid JSON`. Continue with the remaining data unless most sections failed.
 
 ### 2. Capture Report Path
 - Extract the generated report path from script output (e.g., `./audits_reports/2025-10-08_05-57-05_droptica.com`)
@@ -163,6 +181,7 @@ Before completing:
 - ✓ HTML structure intact (no broken tags)
 - ✓ Bootstrap collapse/accordion working correctly
 - ✓ All badges, icons, and styling applied consistently
+- ✓ No `<style>` blocks, custom colours or fonts added - use Bootstrap classes and the components from `html/assets/report.css` (see AGENTS.md → HTML Template Styling Standard)
 
 ## Definition of Done
 
@@ -195,7 +214,7 @@ Two separate files with **zero repetition**:
 
 ## Verification (Optional)
 
-If MCP Playwright is available:
+If a browser tool is available (e.g., MCP Playwright):
 - Open `[report_path]/html/index.html` in browser
 - Navigate through all sections to verify:
   - Executive Summary renders correctly

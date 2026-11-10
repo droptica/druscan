@@ -32,6 +32,40 @@ SECTION="${2:-frontend}"
 # Load performance modules registry
 source "$SCRIPT_DIR/performance_modules_registry.sh" 2>/dev/null || true
 
+# Load helper for running PHP inside Drupal with one drush call
+source "$SCRIPT_DIR/lib/drush_php.sh"
+
+# ============================================
+# Shared data (collected once, used by several parts)
+# ============================================
+# DRUPAL_PERF_DATA: config values, cache bins, index counts, table sizes, image styles
+#                   (scripts/php/performance.php - ONE Drupal bootstrap instead of ~10)
+# Loaded in "Main" before the analysis functions run, because the functions run in
+# subshells and cannot share variables with each other.
+DRUPAL_PERF_DATA="{}"
+
+load_drupal_perf_data() {
+    log INFO "Collecting Drupal performance data (one Drupal call)..."
+    local data
+    data=$(drush_php "$SCRIPT_DIR/php/performance.php" 2>/dev/null)
+    if [ -n "$data" ] && echo "$data" | jq empty 2>/dev/null; then
+        DRUPAL_PERF_DATA="$data"
+    else
+        log WARN "Could not collect Drupal performance data - values will be empty"
+    fi
+}
+
+# Read one value from DRUPAL_PERF_DATA: perf_data '<jq filter>' '<fallback>'
+perf_data() {
+    local value
+    value=$(echo "$DRUPAL_PERF_DATA" | jq -c "$1 // empty" 2>/dev/null)
+    if [ -z "$value" ]; then
+        echo "$2"
+    else
+        echo "$value"
+    fi
+}
+
 # ============================================
 # FRONTEND PERFORMANCE (Lighthouse)
 # ============================================
@@ -150,7 +184,7 @@ analyze_cache_config() {
     fi
 
     # Get page cache max age
-    page_cache_max_age=$(ddev drush config:get system.performance cache.page.max_age --format=json 2>/dev/null | jq -r '.["cache.page.max_age"] // 0' || echo "0")
+    page_cache_max_age=$(perf_data '.page_cache_max_age' '0')
 
     # Check core cache modules
     render_cache_enabled=$(ddev drush pm:list --format=json 2>/dev/null | jq -r 'to_entries[] | select(.key == "page_cache") | .value.status' || echo "disabled")
@@ -158,7 +192,7 @@ analyze_cache_config() {
 
     # Get cache bins
     local cache_bins
-    cache_bins=$(ddev drush php-eval "echo json_encode(array_keys(\Drupal::service('cache_bins_manager')->getBins()));" 2>/dev/null || echo "[]")
+    cache_bins=$(perf_data '.cache_bins' '[]')
 
     # Check Varnish/Purge modules
     local varnish_module
@@ -198,33 +232,21 @@ EOF
 # ============================================
 analyze_database_indexes() {
     log INFO "Analyzing database indexes..."
-    # Check indexes on main tables
-    local node_indexes
-    node_indexes=$(ddev drush sql-query "SHOW INDEX FROM node_field_data" --format=json 2>/dev/null || echo "[]")
-
-    local users_indexes
-    users_indexes=$(ddev drush sql-query "SHOW INDEX FROM users_field_data" --format=json 2>/dev/null || echo "[]")
-
-    local taxonomy_indexes
-    taxonomy_indexes=$(ddev drush sql-query "SHOW INDEX FROM taxonomy_term_field_data" --format=json 2>/dev/null || echo "[]")
-
-    # Find tables without primary keys (BAD!)
+    # Index counts, tables without primary key and largest tables come from DRUPAL_PERF_DATA
     local tables_without_pk
-    tables_without_pk=$(ddev drush sql-query "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME NOT IN (SELECT TABLE_NAME FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_TYPE = 'PRIMARY KEY' AND TABLE_SCHEMA = DATABASE())" --format=json 2>/dev/null || echo "[]")
+    tables_without_pk=$(perf_data '.tables_without_primary_key' '[]')
 
-    # Get largest tables (potential bottlenecks)
     local largest_tables
-    largest_tables=$(ddev drush sql-query "SELECT TABLE_NAME, ROUND((DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024, 2) AS 'size_mb', TABLE_ROWS FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() ORDER BY (DATA_LENGTH + INDEX_LENGTH) DESC LIMIT 20" --format=json 2>/dev/null || echo "[]")
+    largest_tables=$(perf_data '.largest_tables' '[]')
 
-    # Count indexes per table
     local node_indexes_count
-    node_indexes_count=$(echo "$node_indexes" | jq '. | length' 2>/dev/null || echo "0")
+    node_indexes_count=$(perf_data '.node_field_data_indexes' '0')
 
     local users_indexes_count
-    users_indexes_count=$(echo "$users_indexes" | jq '. | length' 2>/dev/null || echo "0")
+    users_indexes_count=$(perf_data '.users_field_data_indexes' '0')
 
     local taxonomy_indexes_count
-    taxonomy_indexes_count=$(echo "$taxonomy_indexes" | jq '. | length' 2>/dev/null || echo "0")
+    taxonomy_indexes_count=$(perf_data '.taxonomy_term_field_data_indexes' '0')
 
     local tables_without_pk_count
     tables_without_pk_count=$(echo "$tables_without_pk" | jq '. | length' 2>/dev/null || echo "0")
@@ -255,32 +277,33 @@ EOF
 # ============================================
 analyze_php_settings() {
     log INFO "Analyzing PHP settings (from DDEV)..."
-    local php_version
-    php_version=$(ddev exec php -r 'echo PHP_VERSION;' 2>/dev/null || echo "unknown")
+    # All PHP settings with ONE "ddev exec" call (was 9 calls)
+    local php_info
+    php_info=$(ddev exec php -r 'echo json_encode(["php_version" => PHP_VERSION, "memory_limit" => ini_get("memory_limit"), "max_execution_time" => ini_get("max_execution_time"), "opcache_enabled" => (extension_loaded("Zend OPcache") || extension_loaded("opcache")) ? "true" : "false", "opcache_memory" => ini_get("opcache.memory_consumption"), "opcache_max_files" => ini_get("opcache.max_accelerated_files"), "opcache_validate_timestamps" => ini_get("opcache.validate_timestamps"), "post_max_size" => ini_get("post_max_size"), "upload_max_filesize" => ini_get("upload_max_filesize")]);' 2>/dev/null)
+    if [ -z "$php_info" ] || ! echo "$php_info" | jq empty 2>/dev/null; then
+        php_info="{}"
+    fi
 
-    local memory_limit
-    memory_limit=$(ddev exec php -r 'echo ini_get("memory_limit");' 2>/dev/null || echo "unknown")
+    # Read one PHP setting: php_setting <key> <fallback>
+    php_setting() {
+        local value
+        value=$(echo "$php_info" | jq -r --arg key "$1" '.[$key] | if . == null or . == false then empty else . end' 2>/dev/null)
+        if [ -z "$value" ]; then
+            echo "$2"
+        else
+            echo "$value"
+        fi
+    }
 
-    local max_execution_time
-    max_execution_time=$(ddev exec php -r 'echo ini_get("max_execution_time");' 2>/dev/null || echo "unknown")
-
-    local opcache_enabled
-    opcache_enabled=$(ddev exec php -r 'echo extension_loaded("opcache") ? "true" : "false";' 2>/dev/null || echo "false")
-
-    local opcache_memory
-    opcache_memory=$(ddev exec php -r 'echo ini_get("opcache.memory_consumption");' 2>/dev/null || echo "unknown")
-
-    local opcache_max_files
-    opcache_max_files=$(ddev exec php -r 'echo ini_get("opcache.max_accelerated_files");' 2>/dev/null || echo "unknown")
-
-    local opcache_validate_timestamps
-    opcache_validate_timestamps=$(ddev exec php -r 'echo ini_get("opcache.validate_timestamps");' 2>/dev/null || echo "unknown")
-
-    local post_max_size
-    post_max_size=$(ddev exec php -r 'echo ini_get("post_max_size");' 2>/dev/null || echo "unknown")
-
-    local upload_max_filesize
-    upload_max_filesize=$(ddev exec php -r 'echo ini_get("upload_max_filesize");' 2>/dev/null || echo "unknown")
+    local php_version=$(php_setting php_version unknown)
+    local memory_limit=$(php_setting memory_limit unknown)
+    local max_execution_time=$(php_setting max_execution_time unknown)
+    local opcache_enabled=$(php_setting opcache_enabled false)
+    local opcache_memory=$(php_setting opcache_memory unknown)
+    local opcache_max_files=$(php_setting opcache_max_files unknown)
+    local opcache_validate_timestamps=$(php_setting opcache_validate_timestamps unknown)
+    local post_max_size=$(php_setting post_max_size unknown)
+    local upload_max_filesize=$(php_setting upload_max_filesize unknown)
 
     # Build recommendations array
     local recommendations=()
@@ -559,10 +582,10 @@ EOF
 analyze_aggregation() {
     log INFO "Analyzing CSS/JS aggregation..."
     local css_preprocess
-    css_preprocess=$(ddev drush config:get system.performance css.preprocess --format=json 2>/dev/null | jq -r '.["css.preprocess"]' || echo "unknown")
+    css_preprocess=$(perf_data '.css_preprocess' '"unknown"' | jq -r '.')
 
     local js_preprocess
-    js_preprocess=$(ddev drush config:get system.performance js.preprocess --format=json 2>/dev/null | jq -r '.["js.preprocess"]' || echo "unknown")
+    js_preprocess=$(perf_data '.js_preprocess' '"unknown"' | jq -r '.')
 
     # Count CSS/JS files in custom themes
     local custom_css_files
@@ -613,7 +636,7 @@ analyze_image_optimization() {
 
     # Count image styles
     local image_styles_count
-    image_styles_count=$(ddev drush config:status --state=Active 2>/dev/null | grep 'image.style.' | wc -l | tr -d ' ')
+    image_styles_count=$(perf_data '.image_styles_count' '0')
 
     # Check image optimization modules
     local webp_module
@@ -726,6 +749,12 @@ EOF
 # ============================================
 # Main
 # ============================================
+case "$SECTION" in
+    backend|cache_config|database_indexes|aggregation|image_optimization)
+        load_drupal_perf_data
+        ;;
+esac
+
 case "$SECTION" in
     frontend)
         analyze_frontend

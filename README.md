@@ -139,6 +139,7 @@ System checks 20+ areas including:
 - Cron jobs, external integrations, APIs
 - Database errors, performance issues
 - Multilingual setup, tests coverage
+- Drupal Canvas page builder (version, pages, custom components)
 
 See `commands_registry.sh` for full list.
 
@@ -163,6 +164,7 @@ For developers who want to extend or modify the audit:
 - **`audit.sh`** - Main orchestration script
 - **`commands_registry.sh`** - Registry of all audit commands (easy to extend)
 - **`./scripts/`** - Helper scripts for complex analysis
+- **`./scripts/php/`** - PHP files run inside Drupal with one drush call each (see `scripts/lib/drush_php.sh`)
 - **`./scripts/ddev_cached.sh`** - Caches repeated read-only `ddev` calls during one audit (disable with `DRUSCAN_NO_CACHE=1`)
 - **`./template/`** - HTML report template (look and feel: `template/drupal_audit_template/assets/report.css`)
 - **`./scripts/rebuild_report_html.sh`** - Rebuilds report HTML from existing JSON (for testing template changes)

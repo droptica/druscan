@@ -9,6 +9,7 @@
 
   <!-- Mermaid.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
+  <script src="../assets/diagram.js"></script>
   <link rel="stylesheet" href="../assets/report.css">
 </head>
 <body class="ds-page">
@@ -128,48 +129,18 @@
         html += '<h3 class="mt-5 mb-3">Menu Structure Visualization</h3>';
         html += '<p class="text-muted mb-3">Interactive diagram showing the main navigation menu hierarchy</p>';
 
-        html += '<div class="alert alert-info border-start border-4 border-info">';
-        html += '<i class="bi bi-mouse-fill me-2"></i>';
-        html += '<strong>💡 Interactive Diagram:</strong> Use mouse wheel to zoom in/out, click and drag to pan. Use the +/- buttons to zoom, or Reset (⟲) to return to original view.';
-        html += '</div>';
-
         html += '<div class="diagram-section">';
-        html += '<div class="zoom-controls">';
-        html += '<button class="zoom-btn" onclick="zoomIn(\'menu-diagram\')">+</button>';
-        html += '<button class="zoom-btn" onclick="zoomOut(\'menu-diagram\')">−</button>';
-        html += '<button class="zoom-btn" onclick="resetZoom(\'menu-diagram\')" style="font-size: 16px;">⟲</button>';
-        html += '</div>';
-        html += `<div class="mermaid" id="menu-diagram">${data.mermaid_diagram}</div>`;
+        html += '<div class="mermaid" id="menu-diagram"></div>';
         html += '</div>';
       }
 
       container.innerHTML = html;
 
-      // Initialize Mermaid
-      if (typeof mermaid !== 'undefined' && data.mermaid_diagram) {
-        setTimeout(() => {
-          mermaid.initialize({
-            startOnLoad: false,
-            theme: 'base',
-            flowchart: {
-              useMaxWidth: false,
-              htmlLabels: true,
-              curve: 'basis'
-            },
-            themeVariables: {
-              fontFamily: "'DM Sans', -apple-system, 'Segoe UI', sans-serif",
-              fontSize: '15px',
-              primaryColor: '#eef1f8',
-              primaryTextColor: '#030a3d',
-              primaryBorderColor: '#d5d8e4',
-              lineColor: '#5b6080',
-              secondaryColor: '#f7f8fb',
-              tertiaryColor: '#ffffff'
-            }
-          });
-          mermaid.run({ nodes: document.querySelectorAll('.mermaid') });
-          initializeZoomPan();
-        }, 100);
+      // Draw the diagram with the shared viewer (assets/diagram.js)
+      const diagramHost = document.getElementById('menu-diagram');
+      if (diagramHost && typeof DruscanDiagram !== 'undefined') {
+        diagramHost.textContent = data.mermaid_diagram;
+        DruscanDiagram.enhance(diagramHost);
       }
     }
 
@@ -198,92 +169,6 @@
 
       html += '</ul>';
       return html;
-    }
-
-    function initializeZoomPan() {
-      const zoomLevels = {};
-      const panPositions = {};
-
-      document.querySelectorAll('.diagram-section').forEach(section => {
-        const mermaidDiv = section.querySelector('.mermaid');
-        if (!mermaidDiv) return;
-
-        const diagramId = mermaidDiv.id;
-        zoomLevels[diagramId] = 1;
-        panPositions[diagramId] = { x: 0, y: 0 };
-
-        const svgElement = mermaidDiv.querySelector('svg');
-        if (svgElement) {
-          // Enable mouse wheel zoom
-          mermaidDiv.addEventListener('wheel', function(e) {
-            e.preventDefault();
-            const delta = e.deltaY > 0 ? -0.1 : 0.1;
-            const currentZoom = zoomLevels[diagramId];
-            const newZoom = Math.max(0.5, Math.min(5, currentZoom + delta));
-            zoomLevels[diagramId] = newZoom;
-            applyTransform(diagramId);
-          });
-
-          // Enable drag to pan
-          let isDragging = false;
-          let startX, startY;
-
-          mermaidDiv.addEventListener('mousedown', function(e) {
-            if (e.target.closest('svg')) {
-              isDragging = true;
-              startX = e.clientX - panPositions[diagramId].x;
-              startY = e.clientY - panPositions[diagramId].y;
-              mermaidDiv.style.cursor = 'grabbing';
-            }
-          });
-
-          mermaidDiv.addEventListener('mousemove', function(e) {
-            if (isDragging) {
-              panPositions[diagramId].x = e.clientX - startX;
-              panPositions[diagramId].y = e.clientY - startY;
-              applyTransform(diagramId);
-            }
-          });
-
-          mermaidDiv.addEventListener('mouseup', function() {
-            isDragging = false;
-            mermaidDiv.style.cursor = 'grab';
-          });
-
-          mermaidDiv.addEventListener('mouseleave', function() {
-            isDragging = false;
-            mermaidDiv.style.cursor = 'grab';
-          });
-        }
-      });
-
-      window.applyTransform = function(diagramId) {
-        const mermaidDiv = document.getElementById(diagramId);
-        const svg = mermaidDiv.querySelector('svg');
-        if (svg) {
-          const zoom = zoomLevels[diagramId];
-          const pan = panPositions[diagramId];
-          svg.style.transform = `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`;
-        }
-      };
-
-      window.zoomIn = function(diagramId) {
-        const currentZoom = zoomLevels[diagramId] || 1;
-        zoomLevels[diagramId] = Math.min(5, currentZoom + 0.2);
-        applyTransform(diagramId);
-      };
-
-      window.zoomOut = function(diagramId) {
-        const currentZoom = zoomLevels[diagramId] || 1;
-        zoomLevels[diagramId] = Math.max(0.5, currentZoom - 0.2);
-        applyTransform(diagramId);
-      };
-
-      window.resetZoom = function(diagramId) {
-        zoomLevels[diagramId] = 1;
-        panPositions[diagramId] = { x: 0, y: 0 };
-        applyTransform(diagramId);
-      };
     }
 
     // Render on page load

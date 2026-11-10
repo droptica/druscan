@@ -213,6 +213,18 @@ Move logic to `./scripts/` when:
    ```
    If the full analysis failed, the fallback command (everything after the two key names) runs.
 
+3. **One Drupal call per script** (`scripts/lib/drush_php.sh` + `scripts/php/*.php`) - every `ddev drush ...` call starts Drupal again (about 2 seconds). A script that needs many values from Drupal must collect them in ONE PHP file and run it once:
+   ```bash
+   SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+   source "${SCRIPT_DIR}/lib/drush_php.sh"
+   drush_php "${SCRIPT_DIR}/php/my_analysis.php" 2>/dev/null                 # no arguments
+   drush_php "${SCRIPT_DIR}/php/my_analysis.php" '{"key": "value"}' 2>/dev/null  # JSON available in PHP as $druscan_args
+   ```
+   - The PHP file starts with `<?php`, uses the bootstrapped Drupal (`\Drupal::...`) and ends with `echo json_encode($result);`
+   - Never call `ddev drush` inside a loop (per bundle, per role, per table...). Use a loop in PHP and `GROUP BY` in SQL instead
+   - Use `{table_name}` in SQL so table prefixes work
+   - Examples: `entity_structure.php`, `user_roles.php`, `homepage.php`, `performance.php`
+
 `${SECTION_JSON}` (exported by `audit.sh`) is the path to the JSON collected so far for the current section.
 
 
@@ -267,6 +279,22 @@ find ... | wc -l | jq 'tonumber'
 
 # ✅ CORRECT
 find ... | wc -l | tr -d ' ' | jq 'tonumber'
+```
+
+### Issue: Loop Ends After the First Item
+**Cause:** `ddev` reads standard input. Inside `while read ... done <<< "$LIST"` it swallows the rest of the list, so the loop runs only once (no error is shown).
+
+**Solution:** Do not call `ddev` in such loops (see "One Drupal call per script"). If you must, add `</dev/null`:
+```bash
+# ❌ WRONG - only the first item is processed
+while IFS= read -r item; do
+    ddev drush config:get "$item" --format=json
+done <<< "$ITEMS"
+
+# ✅ CORRECT
+while IFS= read -r item; do
+    ddev drush config:get "$item" --format=json </dev/null
+done <<< "$ITEMS"
 ```
 
 ### Issue: Complex Command Escaping
@@ -438,7 +466,25 @@ COMMANDS=(
 - Chips: `.badge.bg-*` (pill with light background)
 - Panels: `.alert.alert-*`, `.info-box`, `.section-intro`, `.success-box`, `.warning-box`, `.error-box`
 - Lists: `.info-row` (`.info-label` + `.info-value`), `.issue-card`, `.check-card`, `.recommendation-item`
-- Diagrams: `.diagram-section` > `.mermaid` + `.zoom-controls` (Mermaid uses `theme: 'base'` with the same colours)
+- Diagrams: `<div class="diagram-section"><div class="mermaid" id="my-diagram"></div></div>`, then put the Mermaid text in with `textContent` and call `DruscanDiagram.enhance(element)` (see below)
+
+### Mermaid diagrams
+
+All diagrams are drawn by the shared viewer `template/drupal_audit_template/assets/diagram.js` (do not write zoom or pan code in include files):
+
+```html
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
+<script src="../assets/diagram.js"></script>
+```
+```js
+const host = document.getElementById('my-diagram');
+host.textContent = data.mermaid_diagram;   // Mermaid definition as text
+DruscanDiagram.enhance(host);              // or DruscanDiagram.enhanceAll()
+```
+
+- Tree diagrams are drawn left-to-right (`graph TD`/`TB` is changed to `graph LR`), so many items make the diagram taller instead of very wide. Add `data-direction="keep"` to keep the original direction
+- The viewer shows the diagram at readable size in a tall scrollable area, with zoom in/out, Fit, 100% and Taller buttons, drag to move and Ctrl/Cmd + scroll to zoom
+- Colours of the Mermaid theme are set in `diagram.js`; node colours (`style X fill:...`) come from the script or template that builds the definition
 
 ### Testing template changes
 

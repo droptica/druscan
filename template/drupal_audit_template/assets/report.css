@@ -197,7 +197,9 @@ code {
   background: var(--ds-neutral-tint);
   padding: 2px 6px;
   border-radius: 4px;
-  word-break: break-word;
+  /* Break long names only when they do not fit (and never squeeze table columns to one letter) */
+  word-break: normal;
+  overflow-wrap: break-word;
 }
 
 pre {
@@ -911,52 +913,87 @@ details > summary:hover { color: var(--ds-blue); }
 .diagram-container { position: relative; margin: 20px 0; }
 
 /* ============================================
-   Mermaid diagrams
+   Mermaid diagrams (viewer built by assets/diagram.js)
    ============================================ */
 
-.diagram-section { margin-top: 28px; position: relative; }
+.diagram-section, .diagram-container { margin: 20px 0; position: relative; }
 
+/* Diagram source text before it is drawn */
 .mermaid {
-  text-align: center;
-  min-height: 400px;
-  cursor: grab;
-  overflow: hidden;
+  min-height: 480px;
   border: 1px solid var(--ds-border);
   border-radius: var(--ds-radius-md);
-  padding: 20px;
   background-color: var(--ds-surface);
+  color: transparent;
+  font-size: 0;
+  overflow: hidden;
+}
+.mermaid .alert { font-size: var(--ds-body); color: var(--ds-text); margin: 16px; }
+
+.ds-diagram {
+  margin: 20px 0;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-white);
+  overflow: hidden;
 }
 
-.mermaid:active { cursor: grabbing; }
-.mermaid svg { max-width: 100%; height: auto; font-family: var(--ds-font) !important; }
-
-.zoom-controls {
-  position: absolute;
-  top: 12px;
-  right: 12px;
+.ds-diagram__toolbar {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
-  z-index: 10;
+  padding: 8px 12px;
+  background: var(--ds-white);
+  border-bottom: 1px solid var(--ds-border);
 }
 
-.zoom-btn {
+.ds-diagram__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--ds-border-strong);
+  border-radius: var(--ds-radius-sm);
   background: var(--ds-white);
   color: var(--ds-navy);
-  border: 1px solid var(--ds-border-strong);
-  width: 36px;
-  height: 36px;
-  border-radius: var(--ds-radius-sm);
-  cursor: pointer;
-  font-size: 18px;
+  font-family: var(--ds-font);
+  font-size: 13px;
   font-weight: 700;
   line-height: 1;
-  box-shadow: none;
+  cursor: pointer;
   transition: background var(--ds-ease), color var(--ds-ease), border-color var(--ds-ease);
 }
+.ds-diagram__btn:hover { background: var(--ds-blue); border-color: var(--ds-blue); color: #fff; }
 
-.zoom-btn:hover { background: var(--ds-blue); border-color: var(--ds-blue); color: #fff; }
-.zoom-btn:active { transform: scale(0.96); }
+.ds-diagram__zoom {
+  min-width: 48px;
+  padding: 0 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ds-text-muted);
+  text-align: right;
+}
+
+.ds-diagram__hint { margin-left: auto; font-size: var(--ds-tiny); color: var(--ds-text-subtle); }
+
+.ds-diagram__viewport {
+  height: min(72vh, 760px);
+  min-height: 480px;
+  overflow: auto;
+  background-color: var(--ds-surface);
+  background-image: radial-gradient(rgba(3, 10, 61, 0.07) 1px, transparent 1px);
+  background-size: 18px 18px;
+  cursor: grab;
+}
+.ds-diagram__viewport.is-dragging { cursor: grabbing; user-select: none; }
+.ds-diagram--tall .ds-diagram__viewport { height: 94vh; }
+
+.ds-diagram__canvas { display: inline-block; padding: 16px; min-width: 100%; }
+.ds-diagram__canvas svg { font-family: var(--ds-font) !important; }
+.ds-diagram__canvas svg foreignObject { overflow: visible; }
+.ds-diagram__canvas svg .nodeLabel, .ds-diagram__canvas svg .edgeLabel { white-space: nowrap; }
 
 /* ============================================
    Report shell (index.html)
@@ -1175,7 +1212,8 @@ body.ds-shell {
   .ds-brand__name { color: var(--ds-navy); }
   .ds-brand__name b, .ds-brand__kicker { color: var(--ds-blue); }
   .ds-header__logo img { filter: none; }
-  .ds-icon-link, .ds-menu-toggle, .zoom-controls, .sidebar-nav .nav-section, .ds-sidebar-footer { display: none !important; }
+  .ds-icon-link, .ds-menu-toggle, .ds-diagram__toolbar, .sidebar-nav .nav-section, .ds-sidebar-footer { display: none !important; }
+  .ds-diagram__viewport { height: auto; min-height: 0; overflow: visible; }
   .main-layout { display: block; }
   .sidebar-nav { width: auto; border: none; padding: 12px 0 0; overflow: visible; }
   .content-iframe { height: 100vh; }

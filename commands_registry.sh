@@ -199,6 +199,19 @@ COMMANDS=(
     "homepage_configuration|full_analysis|json|bash \${BASE_DIR}/scripts/analyze_homepage.sh"
 
     # ============================================
+    # Section: Drupal Canvas (visual page builder, drupal/canvas)
+    # - Is Canvas in the codebase / enabled, and in which version
+    # - Pages built with Canvas (title, path, status, number of components)
+    # - Components by source: code-defined (SDC), created in the Canvas editor, blocks
+    # - Custom components (custom theme/module code or created in the browser)
+    # - Most used components, unused custom components
+    # - Content templates, page regions, patterns, related modules
+    # Works also when Canvas is not installed (returns enabled: false)
+    # All data comes from ONE drush call (scripts/php/canvas.php)
+    # ============================================
+    "canvas|analysis|json|bash \${BASE_DIR}/scripts/analyze_canvas.sh"
+
+    # ============================================
     # Section: Database Logs (dblog)
     # Analyzes Drupal database logs (watchdog table):
     # - Watchdog table verification

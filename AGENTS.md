@@ -1,10 +1,16 @@
----
-description:
-globs:
-alwaysApply: true
----
+# DRUSCAN - Instructions for AI Agents
 
-# Always use this approach:
+DRUSCAN is an automated technical audit tool for Drupal sites, written in Bash. This file holds the project rules for AI coding agents.
+
+## Agent Files Layout
+
+- `AGENTS.md` - project rules (this file). `CLAUDE.md` is a symlink to it.
+- `.agents/skills/` - agent skills in the [Agent Skills](https://agentskills.io/specification) format. `.claude/skills` is a symlink to it.
+- `.agents/skills/drupal-audit/SKILL.md` - runs a full audit and writes the AI analysis into the HTML report.
+
+When adding a skill, create `.agents/skills/<skill-name>/SKILL.md` with `name` (same as the directory name) and `description` in the YAML frontmatter. Do not edit `CLAUDE.md` or `.claude/skills` directly - they are symlinks.
+
+## Always use this approach:
 
 - Use simple words in output.
 - Do not say anything inaccurate. If you don't know something, say so. You can also use MCP Perplexity to find answers.
@@ -47,7 +53,7 @@ alwaysApply: true
 
 
 ## Date Verification Rule
-**CRITICAL**: Before writing ANY date to .md or .mdc files, ALWAYS check the current system date first using `date` command. Never use example dates or assume the current date.
+**CRITICAL**: Before writing ANY date to .md files, ALWAYS check the current system date first using `date` command. Never use example dates or assume the current date.
 
 
 

@@ -72,7 +72,7 @@ That's it! Now you can run the audit.
 
 ### Option 1: Full AI-Powered Workflow (Recommended)
 
-Use with [Cursor IDE](https://cursor.com) for complete audit analysis:
+Use with an AI coding agent that supports [Agent Skills](https://agentskills.io) (e.g., Cursor, Claude Code, Codex) for complete audit analysis:
 
 **What you get:**
 - ✅ Automated data collection from your Drupal site
@@ -81,8 +81,8 @@ Use with [Cursor IDE](https://cursor.com) for complete audit analysis:
 - ✅ Actionable improvement suggestions
 
 **Usage:**
-- Open project in Cursor IDE
-- In chat, type: `/drupal-audit [site-name] [production-url]`
+- Open the project in your AI coding agent
+- In chat, type: `/drupal-audit [site-name] [production-url]` (or ask the agent to run the `drupal-audit` skill for your site and production URL)
 - Wait 10-15 minutes for complete analysis
 
 ### Option 2: Standalone Script (Manual Analysis)
@@ -153,6 +153,8 @@ For developers who want to extend or modify the audit:
 - **`commands_registry.sh`** - Registry of all audit commands (easy to extend)
 - **`./scripts/`** - Helper scripts for complex analysis
 - **`./template/`** - HTML report template
+- **`AGENTS.md`** - Project rules for AI coding agents (`CLAUDE.md` is a symlink to it)
+- **`.agents/skills/`** - Agent skills, e.g. `drupal-audit` (`.claude/skills` is a symlink to it)
 - **Output:** `audits_reports/{timestamp}_{site-name}/` - JSON data + HTML
 
 ---

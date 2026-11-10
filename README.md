@@ -115,8 +115,19 @@ Run audit scripts directly from terminal:
 ```
 audits_reports/{timestamp}_{site-name}/
 ├── json/       # Structured audit data
-└── html/       # Report template
+├── html/       # Report template
+└── errors.log  # Only when something failed: command, exit code, error output
 ```
+
+**Exit codes:**
+
+| Code | Meaning |
+|------|---------|
+| `0` | Audit completed without errors |
+| `1` | Audit did not run (missing parameters, unknown section name, missing tools, DDEV not accessible) |
+| `2` | Audit completed, but at least one command or section failed - the report may be incomplete |
+
+The summary at the end lists all errors and warnings. Errors (e.g., a command returned invalid JSON) change the exit code to `2`. Warnings (e.g., a command returned a non-zero exit code or no output, a helper script reported a problem such as a missing optional tool) do not. Note that `errors.log` may contain raw command output - review it before sharing the report folder.
 
 ## What Gets Audited
 

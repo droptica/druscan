@@ -29,6 +29,11 @@ Run from the repository root:
 
 **Note for AI/LLM:** The audit script execution may take **5-15 minutes** depending on site complexity (number of modules, content volume, database size). Be patient and wait for the script to complete. Do not assume it has failed if it takes several minutes.
 
+**Check the exit code and the "Errors" / "Warnings" lists in the execution summary:**
+- `0` - audit completed, continue.
+- `1` - audit did not run (bad parameters, unknown section, DDEV not accessible). Stop and report the error message to the user.
+- `2` - audit completed, but some commands failed. Read `[report_path]/errors.log`, tell the user which sections are affected, and do not draw conclusions from data marked `ERROR: Invalid JSON`. Continue with the remaining data unless most sections failed.
+
 ### 2. Capture Report Path
 - Extract the generated report path from script output (e.g., `./audits_reports/2025-10-08_05-57-05_droptica.com`)
 - Store this path as `[report_path]` for subsequent steps

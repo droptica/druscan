@@ -72,6 +72,8 @@ The audit system uses **two main files**:
 - Loads command definitions from `commands_registry.sh`
 - Executes commands and saves results to JSON files
 - Validates JSON output and adds metadata
+- Tracks failed commands: prints errors and warnings in the final summary and saves details (command, exit code, stderr) to `audits_reports/{timestamp}_{site_name}/errors.log`
+- Exit codes: `0` = OK, `1` = audit did not run (bad parameters, unknown section, DDEV not accessible), `2` = audit completed with errors
 
 **`commands_registry.sh`** contains:
 - Array of command definitions in format: `"section_name|key|type|command"`

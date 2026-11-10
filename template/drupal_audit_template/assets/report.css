@@ -1008,23 +1008,10 @@ body.ds-shell {
 
 .ds-header__right { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
 
-.ds-site-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  max-width: 320px;
-  padding: 6px 14px;
-  border-radius: var(--ds-radius-pill);
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-  font-size: var(--ds-small);
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.ds-site-chip .bi { color: var(--ds-teal); }
+/* Droptica logo on the navy header (dark SVG shown in white) */
+.ds-header__logo { display: inline-flex; align-items: center; margin-left: 4px; transition: opacity var(--ds-ease); }
+.ds-header__logo:hover { opacity: 0.8; }
+.ds-header__logo img { height: 26px; width: auto; filter: brightness(0) invert(1); }
 
 .ds-icon-link {
   display: inline-grid;
@@ -1159,7 +1146,8 @@ body.ds-shell {
 @media (max-width: 767px) {
   :root { --ds-header-h: 56px; --ds-h2: 26px; }
   .ds-header { padding: 0 14px; }
-  .ds-brand__kicker, .ds-site-chip { display: none; }
+  .ds-brand__kicker { display: none; }
+  .ds-header__logo img { height: 22px; }
   .ds-menu-toggle { display: inline-grid; place-items: center; }
   .main-layout { position: relative; }
   .sidebar-nav {
@@ -1186,7 +1174,7 @@ body.ds-shell {
   .ds-header { background: #fff; color: var(--ds-navy); border-bottom: 2px solid var(--ds-navy); }
   .ds-brand__name { color: var(--ds-navy); }
   .ds-brand__name b, .ds-brand__kicker { color: var(--ds-blue); }
-  .ds-site-chip { background: none; color: var(--ds-navy); padding: 0; }
+  .ds-header__logo img { filter: none; }
   .ds-icon-link, .ds-menu-toggle, .zoom-controls, .sidebar-nav .nav-section, .ds-sidebar-footer { display: none !important; }
   .main-layout { display: block; }
   .sidebar-nav { width: auto; border: none; padding: 12px 0 0; overflow: visible; }

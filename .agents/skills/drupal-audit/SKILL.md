@@ -181,6 +181,7 @@ Before completing:
 - ✓ HTML structure intact (no broken tags)
 - ✓ Bootstrap collapse/accordion working correctly
 - ✓ All badges, icons, and styling applied consistently
+- ✓ No `<style>` blocks, custom colours or fonts added - use Bootstrap classes and the components from `html/assets/report.css` (see AGENTS.md → HTML Template Styling Standard)
 
 ## Definition of Done
 

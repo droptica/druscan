@@ -197,7 +197,7 @@ try:
     # Add styling
     diagram_lines.append("")
     diagram_lines.append("    %% Styling")
-    diagram_lines.append("    style MainMenu fill:#0678BE,color:#fff,stroke:#0678BE,stroke-width:3px")
+    diagram_lines.append("    style MainMenu fill:#030a3d,color:#fff,stroke:#030a3d,stroke-width:2px")
 
     print("\\n".join(diagram_lines))
 

@@ -351,16 +351,16 @@ generate_mermaid_diagram() {
 
     # Styling
     MERMAID="${MERMAID}    %% Styling\n"
-    MERMAID="${MERMAID}    style Entities fill:#0678BE,color:#fff\n"
-    MERMAID="${MERMAID}    style Node fill:#66B3E0,color:#000\n"
-    MERMAID="${MERMAID}    style Taxonomy fill:#8B5CF6,color:#fff\n"
-    MERMAID="${MERMAID}    style User fill:#FF6B35,color:#fff\n"
-    MERMAID="${MERMAID}    style Media fill:#10B981,color:#fff\n"
-    MERMAID="${MERMAID}    style Paragraph fill:#F59E0B,color:#fff\n"
+    MERMAID="${MERMAID}    style Entities fill:#030a3d,color:#fff,stroke:#030a3d\n"
+    MERMAID="${MERMAID}    style Node fill:#0039ff,color:#fff,stroke:#0039ff\n"
+    MERMAID="${MERMAID}    style Taxonomy fill:#00e2d1,color:#030a3d,stroke:#0b9d86\n"
+    MERMAID="${MERMAID}    style User fill:#f15a24,color:#fff,stroke:#f15a24\n"
+    MERMAID="${MERMAID}    style Media fill:#0b9d86,color:#fff,stroke:#0b9d86\n"
+    MERMAID="${MERMAID}    style Paragraph fill:#fdecc8,color:#030a3d,stroke:#f59e0b\n"
 
     # Add Canvas styling if enabled
     if [ "$CANVAS_CHECK" = "1" ]; then
-        MERMAID="${MERMAID}    style Canvas fill:#EC4899,color:#fff\n"
+        MERMAID="${MERMAID}    style Canvas fill:#5b6080,color:#fff,stroke:#5b6080\n"
     fi
 
     echo -e "$MERMAID"

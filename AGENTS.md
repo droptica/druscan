@@ -393,75 +393,63 @@ COMMANDS=(
 
 ## HTML Template Styling Standard
 
-**IMPORTANT**: All HTML files in `template/drupal_audit_template/includes/` must follow the Droptica branding standard.
+**IMPORTANT**: The report look is defined in ONE file: `template/drupal_audit_template/assets/report.css` (design tokens + shared styles, in the style of droptica.ai).
 
-### Required Elements:
+### How it is wired
 
-1. **Bootstrap CSS Link:**
-   ```html
-   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-   ```
+- `index.html` (report shell: header, sidebar, iframes) loads `assets/report.css`
+- Every file in `includes/` loads Bootstrap 5.3 + Bootstrap Icons from CDN and then `../assets/report.css`, and has `<body class="ds-page">`
+- `report.css` maps Bootstrap variables and components (cards, tables, badges, alerts, buttons) to the tokens, so standard Bootstrap classes already look right
 
-2. **CSS Variables (Droptica Branding):**
-   ```css
-   :root {
-     --droptica-primary: #0039FF;
-     --droptica-success: #10B981;
-     --droptica-warning: #F59E0B;
-     --droptica-danger: #DC2626;
-   }
-   ```
+```html
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+<link rel="stylesheet" href="../assets/report.css">
+</head>
+<body class="ds-page">
+  <div class="container-fluid">
+    <h2 class="mb-4">Section Title</h2>
+    <p>Short intro (styled as lead text).</p>
+```
 
-3. **Standard H2 Styling:**
-   ```css
-   h2 {
-     color: var(--droptica-primary);
-     border-bottom: 2px solid var(--droptica-primary);
-     padding-bottom: 10px;
-   }
-   ```
+### Rules
 
-4. **Body Styling:**
-   ```css
-   body {
-     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-     background-color: #f8f9fa;
-     padding: 20px;
-   }
-   ```
+1. **No `<style>` blocks and no colours or fonts in `style=""`** in `index.html` or `includes/*.html`. Layout-only inline styles (e.g., column `width`) are OK.
+2. **Use tokens** (`var(--ds-*)`). A new colour, size, radius or shadow becomes a token in `report.css` first.
+3. **A new component gets its CSS in `report.css`** (section "Section-specific components"), not in the include file.
+4. **Use Bootstrap classes for status**: `bg-success` / `text-success` (OK), `bg-warning` (warning), `bg-danger` (critical), `bg-primary` / `bg-info` (neutral highlight), `bg-secondary` (inactive). `report.css` turns them into the report palette.
+5. **Font**: DM Sans (free, loaded from Google Fonts in `report.css`). Do not add other fonts.
+6. **No H1 inside sections** - the page title is `<h2>`, sub-sections are `<h3>`/`<h4>`.
 
-5. **Card Styling:**
-   ```css
-   .card {
-     border: none;
-     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-   }
-   ```
+### Main tokens
 
-### Allowed Colors:
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--ds-navy` | `#030a3d` | Headings, header bar, text |
+| `--ds-blue` | `#0039ff` | Links, accents, active state |
+| `--ds-teal` | `#00e2d1` | Accents on navy |
+| `--ds-surface` / `--ds-surface-2` | `#f7f8fb` / `#eef1f8` | Page background / table heads, panels |
+| `--ds-ok`, `--ds-warn`, `--ds-danger` | `#0b9d86`, `#f59e0b`, `#dc2626` | Status colours (each has `-ink` for text and `-tint` for backgrounds) |
+| `--ds-radius-sm/md/lg` | `6px / 10px / 16px` | Corners |
 
-**Droptica Brand Colors (use ONLY these):**
-- `var(--droptica-primary)` - #0039FF (main blue) - for headers, borders, primary elements
-- `var(--droptica-success)` - #10B981 (green) - ONLY for success states/badges
-- `var(--droptica-warning)` - #F59E0B (orange) - ONLY for warning states/badges
-- `var(--droptica-danger)` - #DC2626 (red) - ONLY for error states/badges
+### Ready-made components (see `report.css`)
 
-**Neutral Colors (allowed for backgrounds/text):**
-- `#f8f9fa` - light gray background
-- `#ffffff` / `#fff` - white
-- `#e0e0e0`, `#ecf0f1`, `#dee2e6` - borders and dividers
-- `#333`, `#555`, `#6c757d`, `#7f8c8d`, `#2c3e50` - text colors
-- `rgba(0, 57, 255, 0.02)` to `rgba(0, 57, 255, 0.15)` - light blue tints for backgrounds
+- Stat tiles: `.stats-grid` > `.stat-card` (`h3` label + `.value`), or `.score-card` > `.score-item.pass|warning|fail`
+- Chips: `.badge.bg-*` (pill with light background)
+- Panels: `.alert.alert-*`, `.info-box`, `.section-intro`, `.success-box`, `.warning-box`, `.error-box`
+- Lists: `.info-row` (`.info-label` + `.info-value`), `.issue-card`, `.check-card`, `.recommendation-item`
+- Diagrams: `.diagram-section` > `.mermaid` + `.zoom-controls` (Mermaid uses `theme: 'base'` with the same colours)
 
-**What NOT to Use:**
-- ❌ Custom colors: #3498db, #8e44ad, #e67e22, #27ae60, #d5f4e6, #229954, etc.
-- ❌ Color gradients with custom colors (use solid `var(--droptica-primary)` instead)
-- ❌ CSS reset with `* { margin: 0; padding: 0; }`
-- ❌ H1 tags (use H2 instead)
+### Testing template changes
+
+No need to run the whole audit. Rebuild the HTML of an existing report from its JSON:
+
+```bash
+bash scripts/rebuild_report_html.sh audits_reports/{timestamp}_{site_name}
+# -> audits_reports/{timestamp}_{site_name}/html_preview/index.html
+```
 
 ### Verification:
-- Test HTML files visually using MCP Playwright
-- Check all headers use Droptica blue (#0039FF)
-- Verify no custom hex colors (except neutral grays)
-- Confirm Bootstrap icons work correctly
+- Open the preview in a browser (e.g., MCP Playwright) and check the changed sections
+- Check the shell at desktop width and below 768px (sidebar becomes a slide-in menu)
+- Confirm no `<style>` blocks were added to include files: `grep -c "<style" template/drupal_audit_template/includes/*.html`

@@ -7,92 +7,9 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-  <style>
-    :root {
-      --droptica-primary: #0039FF;
-      --droptica-primary-dark: #0029CC;
-      --droptica-success: #10B981;
-      --droptica-warning: #F59E0B;
-      --droptica-danger: #DC2626;
-    }
-
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #f8f9fa;
-      padding: 20px;
-    }
-
-    h2 {
-      color: var(--droptica-primary);
-      border-bottom: 2px solid var(--droptica-primary);
-      padding-bottom: 10px;
-    }
-
-    .card {
-      border: none;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-
-    .diagram-container {
-      position: relative;
-      margin: 20px 0;
-    }
-
-    .zoom-controls {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      z-index: 1000;
-    }
-
-    .zoom-btn {
-      background: var(--droptica-primary);
-      color: white;
-      border: none;
-      width: 40px;
-      height: 40px;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 20px;
-      font-weight: bold;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-      transition: background 0.2s;
-    }
-
-    .zoom-btn:hover {
-      background: var(--droptica-primary-dark);
-    }
-
-    .zoom-btn:active {
-      transform: scale(0.95);
-    }
-
-    .mermaid {
-      background-color: #fff;
-      border: 1px solid #dee2e6;
-      border-radius: 8px;
-      padding: 20px;
-      margin: 0;
-      text-align: center;
-      overflow: hidden;
-      cursor: grab;
-    }
-
-    .mermaid:active {
-      cursor: grabbing;
-    }
-
-    .mermaid svg {
-      max-width: 100%;
-      height: auto;
-      transition: transform 0.2s ease;
-    }
-  </style>
+  <link rel="stylesheet" href="../assets/report.css">
 </head>
-<body>
+<body class="ds-page">
   <div class="container-fluid">
     <section class="card shadow-sm mb-4" id="entity-system-structure">
       <div class="card-body p-4">
@@ -122,7 +39,17 @@
     if (typeof mermaid !== 'undefined') {
       mermaid.initialize({
         startOnLoad: false,
-        theme: 'default',
+        theme: 'base',
+        themeVariables: {
+              fontFamily: "'DM Sans', -apple-system, 'Segoe UI', sans-serif",
+              fontSize: '15px',
+              primaryColor: '#eef1f8',
+              primaryTextColor: '#030a3d',
+              primaryBorderColor: '#d5d8e4',
+              lineColor: '#5b6080',
+              secondaryColor: '#f7f8fb',
+              tertiaryColor: '#ffffff'
+            },
         securityLevel: 'loose',
         flowchart: {
           useMaxWidth: true,

@@ -125,7 +125,8 @@ analyze_url_aliases() {
         local pattern_details=()
         while IFS= read -r pattern_id; do
             if [[ -n "$pattern_id" ]]; then
-                local pattern_config=$(ddev drush config:get "pathauto.pattern.$pattern_id" --format=json 2>/dev/null || echo '{}')
+                # </dev/null: ddev must not read the loop input (it would end the loop after the first pattern)
+                local pattern_config=$(ddev drush config:get "pathauto.pattern.$pattern_id" --format=json 2>/dev/null </dev/null || echo '{}')
                 pattern_details+=("$pattern_config")
             fi
         done <<< "$patterns"

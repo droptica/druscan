@@ -78,23 +78,31 @@ check_file_exists() {
     fi
 }
 
-# Function to check composer package
+# All installed Composer packages - ONE "ddev composer show" call
+# (was one call per tool: 20+ calls, about 30 seconds)
+INSTALLED_PACKAGES_JSON=$(ddev composer show --format=json 2>/dev/null || echo '{}')
+if ! echo "$INSTALLED_PACKAGES_JSON" | jq empty 2>/dev/null; then
+    INSTALLED_PACKAGES_JSON='{}'
+fi
+INSTALLED_PACKAGE_NAMES=$(echo "$INSTALLED_PACKAGES_JSON" | jq -r '(.installed // [])[].name' 2>/dev/null || true)
+
+# Function to check composer package (uses the list above, no ddev call)
 check_composer_package() {
     local packages=$1
-    
+
     if [ -z "$packages" ]; then
         echo "false"
         return
     fi
-    
+
     IFS=',' read -ra PKG_ARRAY <<< "$packages"
     for pkg in "${PKG_ARRAY[@]}"; do
-        if ddev composer show "$pkg" &>/dev/null; then
+        if echo "$INSTALLED_PACKAGE_NAMES" | grep -qx "$pkg"; then
             echo "true"
             return
         fi
     done
-    
+
     echo "false"
 }
 
@@ -167,11 +175,8 @@ for tool_entry in "${TOOLS[@]}"; do
     fi
 done
 
-# Get list of relevant composer packages
-COMPOSER_PACKAGES="[]"
-if command -v ddev &>/dev/null; then
-    COMPOSER_PACKAGES=$(ddev composer show --format=json 2>/dev/null | jq '[.installed[] | select(.name | test("phpstan|psalm|phpcs|phpmd|php-cs-fixer|phan|rector|phpunit|grumphp|phpmetrics|codeception|behat|infection|phpcpd|phploc|parallel-lint|phpcompat|deptrac|coder|drupal.*dev")) | {name: .name, version: .version, description: .description}] // []' 2>/dev/null || echo "[]")
-fi
+# Get list of relevant composer packages (from the list loaded above)
+COMPOSER_PACKAGES=$(echo "$INSTALLED_PACKAGES_JSON" | jq '[(.installed // [])[] | select(.name | test("phpstan|psalm|phpcs|phpmd|php-cs-fixer|phan|rector|phpunit|grumphp|phpmetrics|codeception|behat|infection|phpcpd|phploc|parallel-lint|phpcompat|deptrac|coder|drupal.*dev")) | {name: .name, version: .version, description: .description}]' 2>/dev/null || echo "[]")
 
 # Build final result
 TOTAL_TOOLS=${#TOOLS[@]}

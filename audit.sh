@@ -320,6 +320,31 @@ else
     fi
 fi
 
+# Enable cached ddev wrapper (see scripts/ddev_cached.sh)
+# Repeated read-only calls like "ddev drush pm:list --format=json" run only once per audit.
+# Disable with: DRUSCAN_NO_CACHE=1 ./audit.sh ...
+DDEV_CALLS_SAVED=0
+DDEV_CACHE_WRAPPER="${BASE_DIR}/scripts/ddev_cached.sh"
+if [ "${DRUSCAN_NO_CACHE:-0}" = "1" ]; then
+    log INFO "ddev command cache disabled (DRUSCAN_NO_CACHE=1)"
+elif [ ! -f "$DDEV_CACHE_WRAPPER" ]; then
+    log WARN "ddev cache wrapper not found: $DDEV_CACHE_WRAPPER (continuing without cache)"
+else
+    DRUSCAN_REAL_DDEV="$(command -v ddev)"
+    DRUSCAN_CACHE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/druscan_cache.XXXXXX")"
+    if [ -n "$DRUSCAN_REAL_DDEV" ] && [ -d "$DRUSCAN_CACHE_DIR" ]; then
+        mkdir -p "${DRUSCAN_CACHE_DIR}/bin"
+        cp "$DDEV_CACHE_WRAPPER" "${DRUSCAN_CACHE_DIR}/bin/ddev"
+        chmod +x "${DRUSCAN_CACHE_DIR}/bin/ddev"
+        export DRUSCAN_REAL_DDEV DRUSCAN_CACHE_DIR
+        export PATH="${DRUSCAN_CACHE_DIR}/bin:${PATH}"
+        trap 'rm -rf "$DRUSCAN_CACHE_DIR"' EXIT
+        log INFO "ddev command cache enabled"
+    else
+        log WARN "Could not set up ddev command cache (continuing without cache)"
+    fi
+fi
+
 # Get basic audit metadata
 log INFO "Collecting audit metadata"
 AUDIT_DATE=$(date '+%Y-%m-%d')
@@ -396,6 +421,11 @@ for section in $SECTIONS_LIST; do
 
     # Initialize JSON output with empty object
     echo "{}" > "$output_path"
+
+    # Path to this section's JSON collected so far ({"key": value, ...}).
+    # Registry commands can reuse results of earlier keys from the same section, e.g.:
+    #   jq '.full_analysis.sitemap' "${SECTION_JSON}"
+    export SECTION_JSON="$output_path"
 
     # Process commands for this section
     for cmd_line in "${COMMANDS[@]}"; do
@@ -522,6 +552,10 @@ ELAPSED_SECONDS=$((ELAPSED_TIME % 60))
 
 rm -f "$CMD_OUTPUT_FILE"
 
+if [ -n "${DRUSCAN_CACHE_DIR:-}" ] && [ -f "${DRUSCAN_CACHE_DIR}/hits.log" ]; then
+    DDEV_CALLS_SAVED=$(wc -l < "${DRUSCAN_CACHE_DIR}/hits.log" | tr -d ' ')
+fi
+
 log INFO "All sections processed"
 log INFO "Results saved in: $OUTPUT_DIR"
 
@@ -531,6 +565,7 @@ echo "EXECUTION SUMMARY"
 echo "======================================"
 echo "Total execution time: ${ELAPSED_MINUTES}m ${ELAPSED_SECONDS}s"
 echo "Sections executed: ${EXECUTED_COUNT}"
+echo "Repeated ddev calls answered from cache: ${DDEV_CALLS_SAVED}"
 echo ""
 echo "Executed sections:"
 for section in "${EXECUTED_SECTIONS[@]}"; do

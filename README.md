@@ -163,6 +163,7 @@ For developers who want to extend or modify the audit:
 - **`audit.sh`** - Main orchestration script
 - **`commands_registry.sh`** - Registry of all audit commands (easy to extend)
 - **`./scripts/`** - Helper scripts for complex analysis
+- **`./scripts/ddev_cached.sh`** - Caches repeated read-only `ddev` calls during one audit (disable with `DRUSCAN_NO_CACHE=1`)
 - **`./template/`** - HTML report template
 - **`AGENTS.md`** - Project rules for AI coding agents (`CLAUDE.md` is a symlink to it)
 - **`.agents/skills/`** - Agent skills, e.g. `drupal-audit` (`.claude/skills` is a symlink to it)

@@ -190,6 +190,26 @@ Move logic to `./scripts/` when:
 - All commands run from: `drupal_sites/{site_name}/` directory
 
 
+## Audit Speed: Cache and Reuse
+
+**IMPORTANT**: Do not run the same slow analysis twice in one audit.
+
+1. **ddev command cache** (`scripts/ddev_cached.sh`) - `audit.sh` puts a `ddev` wrapper at the front of `PATH`. Repeated read-only calls with identical arguments (`drush pm:list`, `drush config:status`, `composer outdated`, `composer show`) run only once. Commands that change module state (`pm:enable`, `pm:uninstall`, `cr`, ...) clear the cache.
+   - Just call `ddev drush pm:list --format=json` normally in scripts - no special code needed
+   - Use the same arguments everywhere (e.g., always `--format=json`, then filter with `jq`) so calls share one cache entry
+   - To add another cached command, extend the `case` list in `scripts/ddev_cached.sh` (read-only commands only)
+   - Disable for debugging: `DRUSCAN_NO_CACHE=1 ./audit.sh ...`
+
+2. **Reuse of a full analysis** (`scripts/reuse_section_key.sh`) - when a section stores a full analysis and also its parts as separate keys, copy the parts from the full analysis instead of running the script again. The full analysis must be listed first in the section.
+   ```bash
+   "seo_analysis|full_analysis|json|bash \${BASE_DIR}/scripts/analyze_seo.sh all"
+   "seo_analysis|sitemap|json|bash \${BASE_DIR}/scripts/reuse_section_key.sh full_analysis sitemap bash \${BASE_DIR}/scripts/analyze_seo.sh sitemap"
+   ```
+   If the full analysis failed, the fallback command (everything after the two key names) runs.
+
+`${SECTION_JSON}` (exported by `audit.sh`) is the path to the JSON collected so far for the current section.
+
+
 ## JSON Output Optimization
 
 **CRITICAL**: Keep JSON output concise and developer-focused.
